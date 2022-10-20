@@ -10,36 +10,6 @@ class Database:
         except Exception as e:
             pass
 
-    def create_new_pswd_table(self, table_name):
-        try:
-            with self.connection:
-                print(table_name)
-                self.cursor.execute(f""" CREATE TABLE IF NOT EXISTS "{table_name}" (
-                                        id         INTEGER PRIMARY KEY AUTOINCREMENT
-                                                           UNIQUE,
-                                        name       TEXT,
-                                        login      TEXT,
-                                        E_pswd     TEXT    NOT NULL,
-                                        url        TEXT,
-                                        E_secret   TEXT,
-                                        comment    TEXT,
-                                        E_who_view TEXT
-                                    ); """)
-        except Exception as e:
-            pass
-
-    def get_all_pswds(self, name: str) -> list:
-        try:
-            with self.connection:
-                return self.cursor.execute(f"SELECT * FROM `{name}`").fetchall()
-        except Exception as e:
-            pass
-
-    def get_filter_pswds(self, table_name: str, search_str: str) -> list:
-        all_pswd = self.get_all_pswds(table_name)
-        res = []
-        for record in all_pswd:
-            pass
 
     def add_user_to_db(self, tlg_user_id, user_getcourse_email):
         try:
@@ -76,6 +46,16 @@ class Database:
             print(f"Module: {__name__}\n"
                   f"Func: {inspect.currentframe().f_code.co_name}\n"
                   f"Excep: {e}\n")
+
+    def del_user_from_db(self, tlg_user_id):
+        try:
+            with self.connection:
+                return self.cursor.execute("DELETE FROM `users_in_channel` WHERE `tlg_user_id` = ?", (tlg_user_id,))
+        except Exception as e:
+            print(f"Module: {__name__}\n"
+                  f"Func: {inspect.currentframe().f_code.co_name}\n"
+                  f"Excep: {e}\n")
+
 
     def add_pswd_view(self, table_name, key, E_who_view):
         try:
