@@ -120,13 +120,15 @@ async def command_start_handler(message: Message) -> None:
                 user_kicked = await bot.kick_chat_member(config.Chanel_Id, user_tlg_id)
                 if user_kicked:
                     init_data.db.del_user_from_db(user_tlg_id)
-                    init_data.Email_user_list.remove(user_email)
-
                     await message.answer(f"User {user_email} delete from channel.")
                 else:
-                    await message.answer(f"User {user_email} in base, but Can't delete it from channel.")
+                    chat_member = await bot.get_chat_member(config.Chanel_Id, user_tlg_id)
+                    await message.answer(
+                        f"User {user_email} with id {user_tlg_id} in BD, but Can't delete it from channel. His status is {chat_member.status}")
             else:
-                await message.answer(f"User {user_email} NOT in base. Can't delete it from channel.")
+                await message.answer(f"User {user_email} NOT in BD. Can't delete it from channel.")
+            init_data.Email_user_list.remove(user_email)
+            await message.answer(f"User email {user_email} delete from user emails list\n.")
 
         init_data.new_emails_to_file(init_data.Email_user_list, config.Emails_file_name)
         init_data.Random_str = init_data.gen_rnd_str()
