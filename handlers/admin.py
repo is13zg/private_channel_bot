@@ -10,8 +10,24 @@ import pathlib
 import create_bot
 import inspect
 import shutil
+import conections
 
 router = Router()
+
+
+@router.message(Command(commands=["request"]))
+async def command_addmails_handler(message: Message) -> None:
+    gr_id = 2504942
+    res = await conections.get_users(gr_id)
+    await message.answer("===requestcomand answer==")
+    reply = " ".join(res)
+    while (len(reply) > 4096):
+        x = reply[:4096]
+        i = x.rfind('\n')
+        await message.answer(x[:i])
+        reply = reply[i:]
+    if len(reply) > 0:
+        await message.answer(reply)
 
 
 @router.message(Command(commands=["addmails"]))
@@ -169,7 +185,7 @@ async def command_start_handler(message: Message) -> None:
                 else:
                     await message.answer(f"User {user_email} in OLD RUMCLUB, but Can't delete it from channel.")
             else:
-                await message.answer(f"User {user_email} NOT member in OLD  OLD RUMCLUB")
+                await message.answer(f"User {user_email} NOT member in OLD RUMCLUB")
 
         init_data.Random_str = init_data.gen_rnd_str()
         return
