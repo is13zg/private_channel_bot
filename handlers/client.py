@@ -47,7 +47,8 @@ def form_tlg_menu_items(menu_from_json: list = [], msgs_ids: list = []) -> Inlin
         builder = InlineKeyboardBuilder()
         for item in menu_from_json:
             builder.row(InlineKeyboardButton(text=item['text'], callback_data=get_universal_callback_data(item)))
-        builder.row(InlineKeyboardButton(text="❌", callback_data="delete_msg#" + " ".join(msgs_ids)))
+        if not init_data.MIN_mode:
+            builder.row(InlineKeyboardButton(text="❌", callback_data="delete_msg#" + " ".join(msgs_ids)))
         return InlineKeyboardMarkup(inline_keyboard=builder.export())
     except Exception as e:
         create_bot.print_error_message(__name__, inspect.currentframe().f_code.co_name, e)

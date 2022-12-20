@@ -54,6 +54,103 @@ async def command_addmails_handler(message: Message) -> None:
         await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
 
 
+@router.message(Command(commands=["update_mails_gk"]))
+async def update_mails_gk(message: Message) -> None:
+    await mails_update(message)
+
+
+async def mails_update(message: Message = None) -> None:
+    try:
+        user_emails = await conections.get_users(config.rm_club_member_list_gk_group_id)
+        user_emails = list(map(lambda x: x.lower(), user_emails))
+
+        # выбираем в какой чат будем отправлять инфу
+        if message == None:
+            chat_id = config.Support_chat_id
+        else:
+            chat_id = message.chat.id
+
+        New_users_emails = set(user_emails).difference(init_data.Email_user_list)
+        delete_users_emails = set(init_data.Email_user_list).difference(user_emails)
+
+        # отправляем НОВЫЕ почты
+        await bot.send_message(chat_id, "==GK_UPD NEW mails ==")
+        reply = " ".join(New_users_emails)
+        while (len(reply) > 4096):
+            x = reply[:4096]
+            i = x.rfind('\n')
+            await bot.send_message(chat_id, x[:i])
+            reply = reply[i:]
+        if len(reply) > 0:
+            await bot.send_message(chat_id, reply)
+        await bot.send_message(chat_id, "==GK_UPD end NEW mails ==")
+
+        # отправляем почты которые будут удаляться
+        await bot.send_message(chat_id, "==GK_UPD mails will delete==")
+        reply = " ".join(delete_users_emails)
+        while (len(reply) > 4096):
+            x = reply[:4096]
+            i = x.rfind('\n')
+            await bot.send_message(chat_id, x[:i])
+            reply = reply[i:]
+        if len(reply) > 0:
+            await bot.send_message(chat_id, reply)
+        await bot.send_message(chat_id, "== GK_UPD end delete mails ==")
+
+        await bot.send_message(f"Write token {init_data.Random_str} after /delete_gk command in private\n"
+                               f"Example: <pre>/delete_gk {init_data.Random_str} </pre>")
+
+        init_data.Emails_to_delete.extend(delete_users_emails)
+
+        init_data.Email_user_list = user_emails
+        init_data.new_emails_to_file(init_data.Email_user_list, config.Emails_file_name)
+    except Exception as e:
+        await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
+
+
+@router.message(Command(commands=["delete_gk"]))
+async def command_start_handler(message: Message) -> None:
+    try:
+        channel_admins = await bot.get_chat_administrators(config.Chanel_Id)
+        channel_admins_ids = set(map(lambda x: x.user.id, channel_admins))
+        if message.from_user.id not in channel_admins_ids:
+            await message.answer("You can't delete user. You are not admin of channel/")
+            return
+
+        user_emails = message.text.split()
+        if len(user_emails) == 1:
+            user_emails.append("")
+        if user_emails[1] != init_data.Random_str:
+            await message.answer(f"Write token {init_data.Random_str} after /delete_gk command\n"
+                                 f"Example: <pre>/delete_gk {init_data.Random_str} </pre>")
+            return
+
+        if len(init_data.Emails_to_delete) == 0:
+            await message.answer("list to delete is empty")
+            return
+
+        user_emails = init_data.Emails_to_delete
+        for user_email in user_emails:
+            if init_data.db.user_exists(user_email):
+                user_tlg_id = init_data.db.get_user_tlg_id(user_email)
+                user_kicked = await bot.kick_chat_member(config.Chanel_Id, user_tlg_id)
+                if user_kicked:
+                    init_data.db.del_user_from_db(user_tlg_id)
+                    await message.answer(f"User {user_email} delete from channel.")
+                else:
+                    chat_member = await bot.get_chat_member(config.Chanel_Id, user_tlg_id)
+                    await message.answer(
+                        f"User {user_email} with id {user_tlg_id} in BD, but Can't delete it from channel. His status is {chat_member.status}")
+            else:
+                await message.answer(f"User {user_email} NOT in BD. Can't delete it from channel.")
+
+        init_data.Random_str = init_data.gen_rnd_str()
+        init_data.Emails_to_delete = []
+        return
+    except Exception as e:
+        await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
+
+
 @router.message(Command(commands=["newmails"]))
 async def command_newmails_handler(message: Message) -> None:
     try:
@@ -351,6 +448,35 @@ async def command_set_check_handler(message: Message) -> None:
         await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
 
 
+@router.message(Command(commands=["set_mode"]))
+async def command_set_channel_handler(message: Message) -> None:
+    try:
+        if message.from_user.id != config.Owner_id:
+            await message.answer("You are not Iskander")
+            return
+        if len(message.text.split()) > 1:
+            mode = message.text.split()[1].lower()
+        else:
+            await message.answer("WHERE norm | min ?")
+            return
+
+        if mode == "min":
+            init_data.interaction_json = init_data.unpuck_json(config.Interaction_file_nameM)
+            init_data.answer_json = init_data.unpuck_json(config.Answers_file_nameM)
+            init_data.MIN_mode = True
+            await message.answer("Set min mode")
+
+        if mode == "norm":
+            init_data.interaction_json = init_data.unpuck_json(config.Interaction_file_name)
+            init_data.answer_json = init_data.unpuck_json(config.Answers_file_name)
+            init_data.MIN_mode = False
+            await message.answer("Set norm mode")
+
+        return
+    except Exception as e:
+        await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
+
+
 @router.message(Command(commands=["set_channel"]))
 async def command_set_channel_handler(message: Message) -> None:
     try:
@@ -451,8 +577,11 @@ async def command_helpaa(msg: Message):
               "/delete_from_old_rum_club [token] удалить пользователей из старого канала РУМКЛУБА\n" \
               "/get_reg_mails список емайлов по которым вступили \n" \
               "/get_free_mails список емайлов по которым еще НЕ вступили \n" \
+              "/update_mails_gk  обновляет список емайлов из геткурса\n" \
+              "/delete_gk TOKEN  удалит лишних после обновления базы из GK\n" \
               "Для Искандера\n" \
               "/set_channel [test, rum, rum2] - выбор канала, для теста или использования\n" \
+              "/set_mode [norm, min] - отключени помощника\n" \
               "/state - состояние переменных\n" \
               "/check_emails [on, off] - выбор проверять ли емайл для доступа к каналу\n" \
               "/bd_mails_lower - приведет все емайлы к нижнему регистру\n"

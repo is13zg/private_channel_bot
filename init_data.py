@@ -79,3 +79,5 @@ menu_names, answer_names = get_menu_names()
 Chek_email_before_join = True
 Random_str = gen_rnd_str()
 Email_user_list = get_emails_from_file(config.Emails_file_name)
+Emails_to_delete = []
+MIN_mode = False
