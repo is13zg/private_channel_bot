@@ -2,8 +2,9 @@ import requests
 import time
 from datetime import datetime
 import asyncio
-
+import create_bot
 import config
+import inspect
 
 
 def get_emails_from_user_list(users):
@@ -21,6 +22,9 @@ async def get_users(group_id: int) -> list:
     json_resp = response.json()
     if json_resp['success']:
         export_id = json_resp['info']['export_id']
+    else:
+        await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, "No export id")
+
     # print(export_id)
     wait_time = 30
     await asyncio.sleep(wait_time)
@@ -34,5 +38,6 @@ async def get_users(group_id: int) -> list:
         if not r['success']:
             wait_time += 10
             await asyncio.sleep(wait_time)
+            await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, r)
         else:
             return get_emails_from_user_list(r["info"]["items"])

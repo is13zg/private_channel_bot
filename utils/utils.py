@@ -13,7 +13,7 @@ async def big_send(chat_id, content, sep="\n", tag=""):
     if len(reply) > 4096:
         await bot.send_message(chat_id, f"== {tag} BEGIN ==")
 
-        while (len(reply) > 4096):
+        while len(reply) > 4096:
             x = reply[:4096]
             i = x.rfind(sep)
             await bot.send_message(chat_id, x[:i])

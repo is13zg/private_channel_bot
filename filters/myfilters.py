@@ -14,7 +14,6 @@ class IsAdmin(BaseFilter):
             else:
                 await msg.answer("You are not admin.")
                 return False
-
         except:
             return False
 

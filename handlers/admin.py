@@ -36,7 +36,7 @@ async def command_addmails_handler(message: Message) -> None:
 
         for user_email in user_emails:
             init_data.Email_user_list.append(user_email.strip().lower())
-        init_data.add_emails_to_file(init_data.Email_user_list, config.Emails_file_name)
+        utils.add_emails_to_file(init_data.Email_user_list, config.Emails_file_name)
         await message.answer("Done!")
         return
     except Exception as e:
@@ -59,11 +59,11 @@ async def mails_update(message: Message = None) -> None:
         else:
             chat_id = message.chat.id
 
-        New_users_emails = set(user_emails).difference(init_data.Email_user_list)
+        new_users_emails = set(user_emails).difference(init_data.Email_user_list)
         delete_users_emails = set(init_data.Email_user_list).difference(user_emails)
 
         # отправляем НОВЫЕ почты
-        await utils.big_send(chat_id, New_users_emails, sep=" ", tag="GK_UPD NEW mails")
+        await utils.big_send(chat_id, new_users_emails, sep=" ", tag="GK_UPD NEW mails")
 
         # отправляем почты которые будут удаляться
         await utils.big_send(chat_id, delete_users_emails, sep=" ", tag="GK_UPD DEL mails")
@@ -73,7 +73,7 @@ async def mails_update(message: Message = None) -> None:
 
         init_data.Emails_to_delete.extend(delete_users_emails)
         init_data.Email_user_list = user_emails
-        init_data.new_emails_to_file(init_data.Email_user_list, config.Emails_file_name)
+        utils.new_emails_to_file(init_data.Email_user_list, config.Emails_file_name)
     except Exception as e:
         await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
 
@@ -137,7 +137,7 @@ async def command_newmails_handler(message: Message) -> None:
         init_data.Email_user_list = []
         for user_email in user_emails:
             init_data.Email_user_list.append(user_email.strip().lower())
-        init_data.new_emails_to_file(init_data.Email_user_list, config.Emails_file_name)
+        utils.new_emails_to_file(init_data.Email_user_list, config.Emails_file_name)
         await message.answer("Done!")
         return
     except Exception as e:
@@ -187,7 +187,7 @@ async def command_start_handler(message: Message) -> None:
             init_data.Email_user_list.remove(user_email)
             await message.answer(f"User email {user_email} delete from user emails list\n.")
 
-        init_data.new_emails_to_file(init_data.Email_user_list, config.Emails_file_name)
+        utils.new_emails_to_file(init_data.Email_user_list, config.Emails_file_name)
         init_data.Random_str = utils.gen_rnd_str()
         return
     except Exception as e:
@@ -282,7 +282,7 @@ async def get_files(message: Message):
 
         if real_file_name == config.Emails_file_name:
             init_data.Email_user_list = utils.get_emails_from_file(config.Emails_file_name)
-            init_data.new_emails_to_file(init_data.Email_user_list, config.Emails_file_name)
+            utils.new_emails_to_file(init_data.Email_user_list, config.Emails_file_name)
         else:
             # обновляем все файлы, независимо от того что загрузили
             init_data.interaction_json, init_data.answer_json = utils.update_interaction_answer(init_data.MIN_mode)
