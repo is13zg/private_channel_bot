@@ -11,6 +11,8 @@ import create_bot
 import inspect
 import shutil
 import conections
+from filters import myfilters
+from utils import utils
 
 router = Router()
 
@@ -20,14 +22,7 @@ async def command_addmails_handler(message: Message) -> None:
     gr_id = 2504942
     res = await conections.get_users(gr_id)
     await message.answer("===requestcomand answer==")
-    reply = " ".join(res)
-    while (len(reply) > 4096):
-        x = reply[:4096]
-        i = x.rfind('\n')
-        await message.answer(x[:i])
-        reply = reply[i:]
-    if len(reply) > 0:
-        await message.answer(reply)
+    await utils.big_send(message.chat.id, res)
 
 
 @router.message(Command(commands=["addmails"]))
@@ -75,33 +70,18 @@ async def mails_update(message: Message = None) -> None:
 
         # отправляем НОВЫЕ почты
         await bot.send_message(chat_id, "==GK_UPD NEW mails ==")
-        reply = " ".join(New_users_emails)
-        while (len(reply) > 4096):
-            x = reply[:4096]
-            i = x.rfind('\n')
-            await bot.send_message(chat_id, x[:i])
-            reply = reply[i:]
-        if len(reply) > 0:
-            await bot.send_message(chat_id, reply)
+        await utils.big_send(chat_id, New_users_emails, sep=" ")
         await bot.send_message(chat_id, "==GK_UPD end NEW mails ==")
 
         # отправляем почты которые будут удаляться
         await bot.send_message(chat_id, "==GK_UPD mails will delete==")
-        reply = " ".join(delete_users_emails)
-        while (len(reply) > 4096):
-            x = reply[:4096]
-            i = x.rfind('\n')
-            await bot.send_message(chat_id, x[:i])
-            reply = reply[i:]
-        if len(reply) > 0:
-            await bot.send_message(chat_id, reply)
+        await utils.big_send(chat_id, delete_users_emails, sep=" ")
         await bot.send_message(chat_id, "== GK_UPD end delete mails ==")
 
-        await bot.send_message(f"Write token {init_data.Random_str} after /delete_gk command in private\n"
-                               f"Example: <pre>/delete_gk {init_data.Random_str} </pre>")
+        await bot.send_message(chat_id, f"Write token {init_data.Random_str} after /delete_gk command in private\n"
+                                        f"Example: <pre>/delete_gk {init_data.Random_str} </pre>")
 
         init_data.Emails_to_delete.extend(delete_users_emails)
-
         init_data.Email_user_list = user_emails
         init_data.new_emails_to_file(init_data.Email_user_list, config.Emails_file_name)
     except Exception as e:
@@ -192,14 +172,7 @@ async def command_viewmails_handler(message: Message) -> None:
             await message.answer("You are not admin of channel")
             return
 
-        reply = "\n".join(init_data.Email_user_list)
-        while (len(reply) > 4096):
-            x = reply[:4096]
-            i = x.rfind('\n')
-            await message.answer(x[:i])
-            reply = reply[i:]
-        if len(reply) > 0:
-            await message.answer(reply)
+        await utils.big_send(message.chat.id, init_data.Email_user_list)
         return
     except Exception as e:
         await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
@@ -302,6 +275,8 @@ async def make_reserv_data(msg: Message):
         await bot.send_document(msg.chat.id, FSInputFile(config.Emails_file_name))
         await bot.send_document(msg.chat.id, FSInputFile(config.Interaction_file_name))
         await bot.send_document(msg.chat.id, FSInputFile(config.Answers_file_name))
+        await bot.send_document(msg.chat.id, FSInputFile(config.Interaction_file_nameM))
+        await bot.send_document(msg.chat.id, FSInputFile(config.Answers_file_nameM))
         return
     except Exception as e:
         await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
@@ -318,11 +293,16 @@ async def get_files(message: Message):
 
         file_id = message.document.file_id
 
+        print(message.document.file_name)
         real_file_name = ""
         if message.document.file_name in config.Interaction_file_name:
             real_file_name = config.Interaction_file_name
         elif message.document.file_name in config.Answers_file_name:
             real_file_name = config.Answers_file_name
+        elif message.document.file_name in config.Interaction_file_nameM:
+            real_file_name = config.Interaction_file_nameM
+        elif message.document.file_name in config.Answers_file_nameM:
+            real_file_name = config.Answers_file_nameM
         elif message.document.file_name == "NEW_LIST_OF_USER_EMAILS.txt":
             real_file_name = config.Emails_file_name
         else:
@@ -344,11 +324,18 @@ async def get_files(message: Message):
         # pathlib.Path(message.document.file_name).replace(real_file_name)
         shutil.move(message.document.file_name, real_file_name)
 
-        if real_file_name == config.Interaction_file_name:
+        if real_file_name == config.Interaction_file_nameM and init_data.MIN_mode:
+            init_data.interaction_json = init_data.unpuck_json(config.Interaction_file_nameM)
+            init_data.menu_names, init_data.answer_names = init_data.get_menu_names()
+
+        if real_file_name == config.Answers_file_nameM and init_data.MIN_mode:
+            init_data.answer_json = init_data.unpuck_json(config.Answers_file_nameM)
+
+        if real_file_name == config.Interaction_file_name and not init_data.MIN_mode:
             init_data.interaction_json = init_data.unpuck_json(config.Interaction_file_name)
             init_data.menu_names, init_data.answer_names = init_data.get_menu_names()
 
-        if real_file_name == config.Answers_file_name:
+        if real_file_name == config.Answers_file_name and not init_data.MIN_mode:
             init_data.answer_json = init_data.unpuck_json(config.Answers_file_name)
 
         if real_file_name == config.Emails_file_name:
@@ -391,14 +378,7 @@ async def command_stat(msg: Message):
             return
         emails = set([x[0] for x in init_data.db.get_emails()])
         free_emails = set(init_data.Email_user_list).difference(emails)
-        reply = "\n".join(free_emails)
-        while (len(reply) > 4096):
-            x = reply[:4096]
-            i = x.rfind('\n')
-            await msg.answer(x[:i])
-            reply = reply[i:]
-        if len(reply) > 0:
-            await msg.answer(reply)
+        await utils.big_send(msg.chat.id, free_emails)
     except Exception as e:
         await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
 
@@ -412,14 +392,7 @@ async def command_stat(msg: Message):
             await msg.answer(" You are not admin of channel.")
             return
         emails = set([x[0] for x in init_data.db.get_emails()])
-        reply = "\n".join(emails)
-        while (len(reply) > 4096):
-            x = reply[:4096]
-            i = x.rfind('\n')
-            await msg.answer(x[:i])
-            reply = reply[i:]
-        if len(reply) > 0:
-            await msg.answer(reply)
+        await utils.big_send(msg.chat.id, emails)
     except Exception as e:
         await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
 
@@ -427,8 +400,10 @@ async def command_stat(msg: Message):
 @router.message(Command(commands=["check_emails"]))
 async def command_set_check_handler(message: Message) -> None:
     try:
-        if message.from_user.id != config.Owner_id:
-            await message.answer("You are not Iskander")
+        channel_admins = await bot.get_chat_administrators(config.Chanel_Id)
+        channel_admins_ids = set(map(lambda x: x.user.id, channel_admins))
+        if message.from_user.id not in channel_admins_ids:
+            await message.answer(" You are not admin of channel.")
             return
 
         if len(message.text.split()) > 1:
@@ -451,8 +426,10 @@ async def command_set_check_handler(message: Message) -> None:
 @router.message(Command(commands=["set_mode"]))
 async def command_set_channel_handler(message: Message) -> None:
     try:
-        if message.from_user.id != config.Owner_id:
-            await message.answer("You are not Iskander")
+        channel_admins = await bot.get_chat_administrators(config.Chanel_Id)
+        channel_admins_ids = set(map(lambda x: x.user.id, channel_admins))
+        if message.from_user.id not in channel_admins_ids:
+            await message.answer(" You are not admin of channel/")
             return
         if len(message.text.split()) > 1:
             mode = message.text.split()[1].lower()
@@ -463,12 +440,14 @@ async def command_set_channel_handler(message: Message) -> None:
         if mode == "min":
             init_data.interaction_json = init_data.unpuck_json(config.Interaction_file_nameM)
             init_data.answer_json = init_data.unpuck_json(config.Answers_file_nameM)
+            init_data.menu_names, init_data.answer_names = init_data.get_menu_names()
             init_data.MIN_mode = True
             await message.answer("Set min mode")
 
         if mode == "norm":
             init_data.interaction_json = init_data.unpuck_json(config.Interaction_file_name)
             init_data.answer_json = init_data.unpuck_json(config.Answers_file_name)
+            init_data.menu_names, init_data.answer_names = init_data.get_menu_names()
             init_data.MIN_mode = False
             await message.answer("Set norm mode")
 
@@ -579,9 +558,9 @@ async def command_helpaa(msg: Message):
               "/get_free_mails список емайлов по которым еще НЕ вступили \n" \
               "/update_mails_gk  обновляет список емайлов из геткурса\n" \
               "/delete_gk TOKEN  удалит лишних после обновления базы из GK\n" \
+              "/set_mode [norm, min] - отключени помощника\n" \
               "Для Искандера\n" \
               "/set_channel [test, rum, rum2] - выбор канала, для теста или использования\n" \
-              "/set_mode [norm, min] - отключени помощника\n" \
               "/state - состояние переменных\n" \
               "/check_emails [on, off] - выбор проверять ли емайл для доступа к каналу\n" \
               "/bd_mails_lower - приведет все емайлы к нижнему регистру\n"
