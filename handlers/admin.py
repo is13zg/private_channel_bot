@@ -17,7 +17,7 @@ from utils import utils
 router = Router()
 
 
-@router.message(Command(commands=["request"]))
+@router.message(Command(commands=["request"]), myfilters.IsOwner())
 async def command_addmails_handler(message: Message) -> None:
     gr_id = 2504942
     res = await conections.get_users(gr_id)
@@ -25,14 +25,10 @@ async def command_addmails_handler(message: Message) -> None:
     await utils.big_send(message.chat.id, res)
 
 
-@router.message(Command(commands=["addmails"]))
+@router.message(Command(commands=["addmails"]), myfilters.IsAdmin())
 async def command_addmails_handler(message: Message) -> None:
     try:
-        channel_admins = await bot.get_chat_administrators(config.Chanel_Id)
-        channel_admins_ids = set(map(lambda x: x.user.id, channel_admins))
-        if message.from_user.id not in channel_admins_ids:
-            await message.answer("You can't delete user. You are not admin of channel/")
-            return
+
 
         if len(message.text.split()) > 1:
             user_emails = message.text.split()[1:]
@@ -49,7 +45,7 @@ async def command_addmails_handler(message: Message) -> None:
         await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
 
 
-@router.message(Command(commands=["update_mails_gk"]))
+@router.message(Command(commands=["update_mails_gk"]), myfilters.IsAdmin())
 async def update_mails_gk(message: Message) -> None:
     await mails_update(message)
 
@@ -88,14 +84,9 @@ async def mails_update(message: Message = None) -> None:
         await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
 
 
-@router.message(Command(commands=["delete_gk"]))
+@router.message(Command(commands=["delete_gk"]), myfilters.IsAdmin())
 async def command_start_handler(message: Message) -> None:
     try:
-        channel_admins = await bot.get_chat_administrators(config.Chanel_Id)
-        channel_admins_ids = set(map(lambda x: x.user.id, channel_admins))
-        if message.from_user.id not in channel_admins_ids:
-            await message.answer("You can't delete user. You are not admin of channel/")
-            return
 
         user_emails = message.text.split()
         if len(user_emails) == 1:
@@ -131,14 +122,10 @@ async def command_start_handler(message: Message) -> None:
         await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
 
 
-@router.message(Command(commands=["newmails"]))
+@router.message(Command(commands=["newmails"]), myfilters.IsAdmin())
 async def command_newmails_handler(message: Message) -> None:
     try:
-        channel_admins = await bot.get_chat_administrators(config.Chanel_Id)
-        channel_admins_ids = set(map(lambda x: x.user.id, channel_admins))
-        if message.from_user.id not in channel_admins_ids:
-            await message.answer("You can't delete user. You are not admin of channel/")
-            return
+
         user_emails = message.text.split()
         if len(user_emails) == 1:
             user_emails.append("")
@@ -163,14 +150,9 @@ async def command_newmails_handler(message: Message) -> None:
         await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
 
 
-@router.message(Command(commands=["viewmails"]))
+@router.message(Command(commands=["viewmails"]), myfilters.IsAdmin())
 async def command_viewmails_handler(message: Message) -> None:
     try:
-        channel_admins = await bot.get_chat_administrators(config.Chanel_Id)
-        channel_admins_ids = set(map(lambda x: x.user.id, channel_admins))
-        if message.from_user.id not in channel_admins_ids:
-            await message.answer("You are not admin of channel")
-            return
 
         await utils.big_send(message.chat.id, init_data.Email_user_list)
         return
@@ -178,14 +160,9 @@ async def command_viewmails_handler(message: Message) -> None:
         await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
 
 
-@router.message(Command(commands=["delete"]))
+@router.message(Command(commands=["delete"]), myfilters.IsAdmin())
 async def command_start_handler(message: Message) -> None:
     try:
-        channel_admins = await bot.get_chat_administrators(config.Chanel_Id)
-        channel_admins_ids = set(map(lambda x: x.user.id, channel_admins))
-        if message.from_user.id not in channel_admins_ids:
-            await message.answer("You can't delete user. You are not admin of channel/")
-            return
 
         user_emails = message.text.split()
         if len(user_emails) == 1:
@@ -224,14 +201,9 @@ async def command_start_handler(message: Message) -> None:
 
 
 # удаляет пользователей из старого РУМ КЛУБА
-@router.message(Command(commands=["delete_from_old_rum_club"]))
+@router.message(Command(commands=["delete_from_old_rum_club"]), myfilters.IsOwner())
 async def command_start_handler(message: Message) -> None:
     try:
-        channel_admins = await bot.get_chat_administrators(config.Chanel_Id)
-        channel_admins_ids = set(map(lambda x: x.user.id, channel_admins))
-        if message.from_user.id not in channel_admins_ids:
-            await message.answer("You can't delete user. You are not admin of channel/")
-            return
 
         msg = message.text.split()
         if len(msg) == 1:
@@ -263,14 +235,9 @@ async def command_start_handler(message: Message) -> None:
         await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
 
 
-@router.message(Command(commands=["reserv"]))
+@router.message(Command(commands=["reserv"]), myfilters.IsAdmin())
 async def make_reserv_data(msg: Message):
     try:
-        channel_admins = await bot.get_chat_administrators(config.Chanel_Id)
-        channel_admins_ids = set(map(lambda x: x.user.id, channel_admins))
-        if msg.from_user.id not in channel_admins_ids:
-            await msg.answer(" You are not admin of channel.")
-            return
         await bot.send_document(msg.chat.id, FSInputFile(config.BD_name))
         await bot.send_document(msg.chat.id, FSInputFile(config.Emails_file_name))
         await bot.send_document(msg.chat.id, FSInputFile(config.Interaction_file_name))
@@ -282,14 +249,9 @@ async def make_reserv_data(msg: Message):
         await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
 
 
-@router.message(F.content_type.in_({'document'}))
+@router.message(F.content_type.in_({'document'}), myfilters.IsAdmin())
 async def get_files(message: Message):
     try:
-        channel_admins = await bot.get_chat_administrators(config.Chanel_Id)
-        channel_admins_ids = set(map(lambda x: x.user.id, channel_admins))
-        if message.from_user.id not in channel_admins_ids:
-            await message.answer(" You are not admin of channel.")
-            return
 
         file_id = message.document.file_id
 
@@ -348,13 +310,9 @@ async def get_files(message: Message):
         await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
 
 
-@router.message(Command(commands=["stat"]))
+@router.message(Command(commands=["stat"]), myfilters.IsAdmin())
 async def command_stat(msg: Message):
     try:
-        channel_admins = await bot.get_chat_administrators(config.Chanel_Id)
-        channel_admins_ids = set(map(lambda x: x.user.id, channel_admins))
-        if msg.from_user.id not in channel_admins_ids:
-            await msg.answer(" You are not admin of channel.")
         all_users = init_data.db.count_reg_user()[0][0]
         emails = set([x[0] for x in init_data.db.get_emails()])
         free_emails = len(set(init_data.Email_user_list).difference(emails))
@@ -368,14 +326,9 @@ async def command_stat(msg: Message):
         await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
 
 
-@router.message(Command(commands=["get_free_mails"]))
+@router.message(Command(commands=["get_free_mails"]), myfilters.IsAdmin())
 async def command_stat(msg: Message):
     try:
-        channel_admins = await bot.get_chat_administrators(config.Chanel_Id)
-        channel_admins_ids = set(map(lambda x: x.user.id, channel_admins))
-        if msg.from_user.id not in channel_admins_ids:
-            await msg.answer(" You are not admin of channel.")
-            return
         emails = set([x[0] for x in init_data.db.get_emails()])
         free_emails = set(init_data.Email_user_list).difference(emails)
         await utils.big_send(msg.chat.id, free_emails)
@@ -383,29 +336,18 @@ async def command_stat(msg: Message):
         await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
 
 
-@router.message(Command(commands=["get_reg_mails"]))
+@router.message(Command(commands=["get_reg_mails"]), myfilters.IsAdmin())
 async def command_stat(msg: Message):
     try:
-        channel_admins = await bot.get_chat_administrators(config.Chanel_Id)
-        channel_admins_ids = set(map(lambda x: x.user.id, channel_admins))
-        if msg.from_user.id not in channel_admins_ids:
-            await msg.answer(" You are not admin of channel.")
-            return
         emails = set([x[0] for x in init_data.db.get_emails()])
         await utils.big_send(msg.chat.id, emails)
     except Exception as e:
         await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
 
 
-@router.message(Command(commands=["check_emails"]))
+@router.message(Command(commands=["check_emails"]), myfilters.IsOwner())
 async def command_set_check_handler(message: Message) -> None:
     try:
-        channel_admins = await bot.get_chat_administrators(config.Chanel_Id)
-        channel_admins_ids = set(map(lambda x: x.user.id, channel_admins))
-        if message.from_user.id not in channel_admins_ids:
-            await message.answer(" You are not admin of channel.")
-            return
-
         if len(message.text.split()) > 1:
             check = message.text.split()[1].lower()
         else:
@@ -423,14 +365,9 @@ async def command_set_check_handler(message: Message) -> None:
         await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
 
 
-@router.message(Command(commands=["set_mode"]))
+@router.message(Command(commands=["set_mode"]), myfilters.IsAdmin())
 async def command_set_channel_handler(message: Message) -> None:
     try:
-        channel_admins = await bot.get_chat_administrators(config.Chanel_Id)
-        channel_admins_ids = set(map(lambda x: x.user.id, channel_admins))
-        if message.from_user.id not in channel_admins_ids:
-            await message.answer(" You are not admin of channel/")
-            return
         if len(message.text.split()) > 1:
             mode = message.text.split()[1].lower()
         else:
@@ -456,12 +393,9 @@ async def command_set_channel_handler(message: Message) -> None:
         await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
 
 
-@router.message(Command(commands=["set_channel"]))
+@router.message(Command(commands=["set_channel"]), myfilters.IsOwner())
 async def command_set_channel_handler(message: Message) -> None:
     try:
-        if message.from_user.id != config.Owner_id:
-            await message.answer("You are not Iskander")
-            return
         if len(message.text.split()) > 1:
             chnl = message.text.split()[1].lower()
         else:
@@ -484,12 +418,9 @@ async def command_set_channel_handler(message: Message) -> None:
         await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
 
 
-@router.message(Command(commands=["state"]))
+@router.message(Command(commands=["state"]), myfilters.IsOwner())
 async def command_state(message: Message) -> None:
     try:
-        if message.from_user.id != config.Owner_id:
-            await message.answer("You are not Iskander")
-            return
         t1 = ""
         if config.Chanel_Id == config.Test_Chanel_Id:
             t1 = "test"
@@ -506,12 +437,9 @@ async def command_state(message: Message) -> None:
         await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
 
 
-@router.message(Command(commands=["bd_mails_lower"]))
+@router.message(Command(commands=["bd_mails_lower"]), myfilters.IsOwner())
 async def command_state(message: Message) -> None:
     try:
-        if message.from_user.id != config.Owner_id:
-            await message.answer("You are not Iskander")
-            return
         emails = set([x[0] for x in init_data.db.get_emails()])
         for mail in emails:
             user_tlg_id = init_data.db.get_user_tlg_id(mail)
@@ -520,14 +448,9 @@ async def command_state(message: Message) -> None:
         await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
 
 
-@router.message(Command(commands=["helpaa"]))
+@router.message(Command(commands=["helpaa"]), myfilters.IsAdmin())
 async def command_helpaa(msg: Message):
     try:
-        channel_admins = await bot.get_chat_administrators(config.Chanel_Id)
-        channel_admins_ids = set(map(lambda x: x.user.id, channel_admins))
-        if msg.from_user.id not in channel_admins_ids:
-            await msg.answer(" You are not admin of channel/")
-            return
         txt = "Для админов\n" \
               "Чтобы обновить сценарий взаидействия с пользователем отправьте файл interaction.json\n" \
               "\n" \

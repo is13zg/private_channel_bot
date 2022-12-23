@@ -9,7 +9,11 @@ class IsAdmin(BaseFilter):
         try:
             channel_admins = await bot.get_chat_administrators(config.Chanel_Id)
             channel_admins_ids = set(map(lambda x: x.user.id, channel_admins))
-            return msg.from_user.id in channel_admins_ids
+            if msg.from_user.id in channel_admins_ids:
+                return True
+            else:
+                await msg.answer("You are not admin.")
+                return False
 
         except:
             return False
@@ -18,6 +22,10 @@ class IsAdmin(BaseFilter):
 class IsOwner(BaseFilter):
     async def __call__(self, msg: Message) -> bool:
         try:
-            return msg.from_user.id == config.Owner_id
+            if msg.from_user.id == config.Owner_id:
+                return True
+            else:
+                await msg.answer("You are not Owner.")
+                return False
         except:
             return False
