@@ -21,14 +21,12 @@ router = Router()
 async def command_addmails_handler(message: Message) -> None:
     gr_id = 2504942
     res = await conections.get_users(gr_id)
-    await message.answer("===requestcomand answer==")
-    await utils.big_send(message.chat.id, res)
+    await utils.big_send(message.chat.id, res, tag="REQST ANSW")
 
 
-@router.message(Command(commands=["addmails"]), myfilters.IsAdmin())
+@router.message(Command(commands=["add_mails"]), myfilters.IsAdmin())
 async def command_addmails_handler(message: Message) -> None:
     try:
-
 
         if len(message.text.split()) > 1:
             user_emails = message.text.split()[1:]
@@ -65,14 +63,10 @@ async def mails_update(message: Message = None) -> None:
         delete_users_emails = set(init_data.Email_user_list).difference(user_emails)
 
         # отправляем НОВЫЕ почты
-        await bot.send_message(chat_id, "==GK_UPD NEW mails ==")
-        await utils.big_send(chat_id, New_users_emails, sep=" ")
-        await bot.send_message(chat_id, "==GK_UPD end NEW mails ==")
+        await utils.big_send(chat_id, New_users_emails, sep=" ", tag="GK_UPD NEW mails")
 
         # отправляем почты которые будут удаляться
-        await bot.send_message(chat_id, "==GK_UPD mails will delete==")
-        await utils.big_send(chat_id, delete_users_emails, sep=" ")
-        await bot.send_message(chat_id, "== GK_UPD end delete mails ==")
+        await utils.big_send(chat_id, delete_users_emails, sep=" ", tag="GK_UPD DEL mails")
 
         await bot.send_message(chat_id, f"Write token {init_data.Random_str} after /delete_gk command in private\n"
                                         f"Example: <pre>/delete_gk {init_data.Random_str} </pre>")
@@ -115,14 +109,14 @@ async def command_start_handler(message: Message) -> None:
             else:
                 await message.answer(f"User {user_email} NOT in BD. Can't delete it from channel.")
 
-        init_data.Random_str = init_data.gen_rnd_str()
+        init_data.Random_str = utils.gen_rnd_str()
         init_data.Emails_to_delete = []
         return
     except Exception as e:
         await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
 
 
-@router.message(Command(commands=["newmails"]), myfilters.IsAdmin())
+@router.message(Command(commands=["new_mails"]), myfilters.IsAdmin())
 async def command_newmails_handler(message: Message) -> None:
     try:
 
@@ -150,11 +144,11 @@ async def command_newmails_handler(message: Message) -> None:
         await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
 
 
-@router.message(Command(commands=["viewmails"]), myfilters.IsAdmin())
+@router.message(Command(commands=["get_mails"]), myfilters.IsAdmin())
 async def command_viewmails_handler(message: Message) -> None:
     try:
 
-        await utils.big_send(message.chat.id, init_data.Email_user_list)
+        await utils.big_send(message.chat.id, init_data.Email_user_list, tag="CRNT_MAILS")
         return
     except Exception as e:
         await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
@@ -194,7 +188,7 @@ async def command_start_handler(message: Message) -> None:
             await message.answer(f"User email {user_email} delete from user emails list\n.")
 
         init_data.new_emails_to_file(init_data.Email_user_list, config.Emails_file_name)
-        init_data.Random_str = init_data.gen_rnd_str()
+        init_data.Random_str = utils.gen_rnd_str()
         return
     except Exception as e:
         await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
@@ -229,7 +223,7 @@ async def command_start_handler(message: Message) -> None:
             else:
                 await message.answer(f"User {user_email} NOT member in OLD RUMCLUB")
 
-        init_data.Random_str = init_data.gen_rnd_str()
+        init_data.Random_str = utils.gen_rnd_str()
         return
     except Exception as e:
         await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
@@ -286,23 +280,13 @@ async def get_files(message: Message):
         # pathlib.Path(message.document.file_name).replace(real_file_name)
         shutil.move(message.document.file_name, real_file_name)
 
-        if real_file_name == config.Interaction_file_nameM and init_data.MIN_mode:
-            init_data.interaction_json = init_data.unpuck_json(config.Interaction_file_nameM)
-            init_data.menu_names, init_data.answer_names = init_data.get_menu_names()
-
-        if real_file_name == config.Answers_file_nameM and init_data.MIN_mode:
-            init_data.answer_json = init_data.unpuck_json(config.Answers_file_nameM)
-
-        if real_file_name == config.Interaction_file_name and not init_data.MIN_mode:
-            init_data.interaction_json = init_data.unpuck_json(config.Interaction_file_name)
-            init_data.menu_names, init_data.answer_names = init_data.get_menu_names()
-
-        if real_file_name == config.Answers_file_name and not init_data.MIN_mode:
-            init_data.answer_json = init_data.unpuck_json(config.Answers_file_name)
-
         if real_file_name == config.Emails_file_name:
-            init_data.Email_user_list = init_data.get_emails_from_file(config.Emails_file_name)
+            init_data.Email_user_list = utils.get_emails_from_file(config.Emails_file_name)
             init_data.new_emails_to_file(init_data.Email_user_list, config.Emails_file_name)
+        else:
+            # обновляем все файлы, независимо от того что загрузили
+            init_data.interaction_json, init_data.answer_json = utils.update_interaction_answer(init_data.MIN_mode)
+            init_data.menu_names, init_data.answer_names = utils.get_menu_names(init_data.interaction_json)
 
         await message.answer(f"File {message.document.file_name} was download")
         return
@@ -331,7 +315,7 @@ async def command_stat(msg: Message):
     try:
         emails = set([x[0] for x in init_data.db.get_emails()])
         free_emails = set(init_data.Email_user_list).difference(emails)
-        await utils.big_send(msg.chat.id, free_emails)
+        await utils.big_send(msg.chat.id, free_emails, tag="FREE_MAILS")
     except Exception as e:
         await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
 
@@ -340,7 +324,7 @@ async def command_stat(msg: Message):
 async def command_stat(msg: Message):
     try:
         emails = set([x[0] for x in init_data.db.get_emails()])
-        await utils.big_send(msg.chat.id, emails)
+        await utils.big_send(msg.chat.id, emails, tag="REG_MAILS")
     except Exception as e:
         await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
 
@@ -375,18 +359,15 @@ async def command_set_channel_handler(message: Message) -> None:
             return
 
         if mode == "min":
-            init_data.interaction_json = init_data.unpuck_json(config.Interaction_file_nameM)
-            init_data.answer_json = init_data.unpuck_json(config.Answers_file_nameM)
-            init_data.menu_names, init_data.answer_names = init_data.get_menu_names()
             init_data.MIN_mode = True
             await message.answer("Set min mode")
 
         if mode == "norm":
-            init_data.interaction_json = init_data.unpuck_json(config.Interaction_file_name)
-            init_data.answer_json = init_data.unpuck_json(config.Answers_file_name)
-            init_data.menu_names, init_data.answer_names = init_data.get_menu_names()
             init_data.MIN_mode = False
             await message.answer("Set norm mode")
+
+        init_data.interaction_json, init_data.answer_json = utils.update_interaction_answer(init_data.MIN_mode)
+        init_data.menu_names, init_data.answer_names = utils.get_menu_names(init_data.interaction_json)
 
         return
     except Exception as e:
@@ -463,26 +444,26 @@ async def command_helpaa(msg: Message):
               "    удаляет пользователей с емайлами useremail1 и useremail2 из канала и из базы,\n" \
               "    можно подставить любое кол-во емайлов от 1 до 100\n" \
               "    чтобы получить токен введите /delete\n" \
-              "/viewmails - список емайлов, по которым можно попасть в рум клуб\n" \
-              "/newmails [token] [useremail1] [useremail2] ...	\n" \
+              "/new_mails [token] [useremail1] [useremail2] ...	\n" \
               "    удаляет ВСЕ существующие емайлы по которым выдается доступ\n" \
               "    и создает новый список с емайлами useremail1 и useremail2 .\n" \
               "    можно подставить любое кол-во емайлов от 1 до 100\n" \
               "    чтобы получить токен введите /newmails\n" \
-              "/addmails [useremail1] [useremail2] ... 	\n" \
-              "добавляет в список с емайлами, емайлы useremail1 и useremail2\n" \
-              "можно подставить любое кол-во емайлов от 1 до 100\n" \
-              "т.е. список дополнится а не обновится\n" \
+              "/add_mails [useremail1] [useremail2] ... 	\n" \
+              "    добавляет в список с емайлами, емайлы useremail1 и useremail2\n" \
+              "    можно подставить любое кол-во емайлов от 1 до 100\n" \
+              "    т.е. список дополнится а не обновится\n" \
               "/stat - покажет общее число пользователей взаимодействоваших с ботом\n" \
-              "число людей, которые получили по емайлу ссылку для входа в канала\n" \
-              "и число свободных емайлов, по которым никто не вступил\n\n" \
+              "     число людей, которые получили по емайлу ссылку для входа в канала\n" \
+              "    и число свободных емайлов, по которым никто не вступил\n" \
               "/delete_from_old_rum_club [token] удалить пользователей из старого канала РУМКЛУБА\n" \
-              "/get_reg_mails список емайлов по которым вступили \n" \
+              "/get_mails - список загруженных емайлов\n" \
+              "/get_reg_mails список емайлов по которым УЖЕ вступили \n" \
               "/get_free_mails список емайлов по которым еще НЕ вступили \n" \
               "/update_mails_gk  обновляет список емайлов из геткурса\n" \
               "/delete_gk TOKEN  удалит лишних после обновления базы из GK\n" \
-              "/set_mode [norm, min] - отключени помощника\n" \
-              "Для Искандера\n" \
+              "/set_mode [norm, min] - отключени помощника\n\n" \
+              "Для владельца\n" \
               "/set_channel [test, rum, rum2] - выбор канала, для теста или использования\n" \
               "/state - состояние переменных\n" \
               "/check_emails [on, off] - выбор проверять ли емайл для доступа к каналу\n" \

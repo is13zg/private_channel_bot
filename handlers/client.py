@@ -109,9 +109,6 @@ async def command_start_handler(message: Message) -> None:
 @router.message(Command(commands=["вступить", "vstupit"]))
 async def command_join_handler(message: Message) -> None:
     try:
-        # регистрируем пользователя в базе
-        if not init_data.db.reg_user_exists(message.from_user.id):
-            init_data.db.add_reg_user_to_db(message.from_user.id)
 
         if init_data.Chek_email_before_join:
             # если проверка почт, проверяем не состоит ли он в канале
