@@ -9,6 +9,7 @@ import asyncio
 
 
 async def big_send(chat_id, content, sep="\n", tag=""):
+    await bot.send_message(chat_id, f"!!! {tag} = {len(content)} !!!" )
     reply = sep.join(content)
     if len(reply) > 4096:
         await bot.send_message(chat_id, f"== {tag} BEGIN ==")

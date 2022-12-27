@@ -65,19 +65,38 @@ async def mails_update(message: Message = None) -> None:
         # отправляем НОВЫЕ почты
         await utils.big_send(chat_id, new_users_emails, sep=" ", tag="GK_UPD NEW mails")
 
-        # отправляем почты которые будут удаляться
-        await utils.big_send(chat_id, delete_users_emails, sep=" ", tag="GK_UPD DEL mails")
+        # отправляем почты которые будут удаляться из списка разрешенных
+        await utils.big_send(chat_id, delete_users_emails, sep=" ", tag="GK_UPD DEL mails from allowed list")
+
+        # отправляем почты которые будут удаляться из канала рум клуба
+        current_users_in_channel = init_data.db.get_emails()
+        delete_users_from_channel = set(current_users_in_channel).intersection(delete_users_emails)
+        await utils.big_send(chat_id, delete_users_from_channel, sep="\n", tag="GK_UPD DEL users from channel ")
 
         await bot.send_message(chat_id, f"Write token {init_data.Random_str} after /delete_gk command in private\n"
                                         f"Example: <pre>/delete_gk {init_data.Random_str} </pre>")
 
-        init_data.Emails_to_delete.extend(delete_users_emails)
-        init_data.Email_user_list = user_emails
-        utils.new_emails_to_file(init_data.Email_user_list, config.Emails_file_name)
+        init_data.Emails_to_delete_from_channel = delete_users_from_channel[:]
+        init_data.Emails_to_delete_from_allow_list = delete_users_emails[:]
     except Exception as e:
         await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
 
 
+@router.message(Command(commands=["get_gkupd"]), myfilters.IsAdmin())
+async def view_emails_after_gk_update(message: Message) -> None:
+    # отправляем НОВЫЕ почты
+    await utils.big_send(message.chat.id, init_data.Emails_new_user_list, sep=" ", tag="GK_UPD NEW mails")
+
+    # отправляем почты которые будут удаляться из списка разрешенных
+    await utils.big_send(message.chat.id, init_data.Emails_to_delete_from_allow_list, sep=" ",
+                         tag="GK_UPD DEL mails from allowed list")
+
+    # отправляем почты которые будут удаляться из канала рум клуба
+    await utils.big_send(message.chat.id, init_data.Emails_to_delete_from_channel, sep="\n",
+                         tag="GK_UPD DEL users from channel ")
+
+
+# /delete_gk TOKEN  удалит лишних после обновления базы из GK
 @router.message(Command(commands=["delete_gk"]), myfilters.IsAdmin())
 async def command_start_handler(message: Message) -> None:
     try:
@@ -90,11 +109,11 @@ async def command_start_handler(message: Message) -> None:
                                  f"Example: <pre>/delete_gk {init_data.Random_str} </pre>")
             return
 
-        if len(init_data.Emails_to_delete) == 0:
+        if len(init_data.Emails_to_delete_from_channel) == 0:
             await message.answer("list to delete is empty")
             return
 
-        user_emails = init_data.Emails_to_delete
+        user_emails = init_data.Emails_to_delete_from_channel
         for user_email in user_emails:
             if init_data.db.user_exists(user_email):
                 user_tlg_id = init_data.db.get_user_tlg_id(user_email)
@@ -110,7 +129,11 @@ async def command_start_handler(message: Message) -> None:
                 await message.answer(f"User {user_email} NOT in BD. Can't delete it from channel.")
 
         init_data.Random_str = utils.gen_rnd_str()
-        init_data.Emails_to_delete = []
+        init_data.Emails_to_delete_from_allow_list = [][:]
+        init_data.Emails_to_delete_from_channel = [][:]
+        init_data.Email_user_list = init_data.Emails_new_user_list[:]
+        init_data.Emails_new_user_list = [][:]
+        utils.new_emails_to_file(init_data.Email_user_list, config.Emails_file_name)
         return
     except Exception as e:
         await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
@@ -144,6 +167,7 @@ async def command_newmails_handler(message: Message) -> None:
         await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
 
 
+# /get_mails - список загруженных емайлов
 @router.message(Command(commands=["get_mails"]), myfilters.IsAdmin())
 async def command_viewmails_handler(message: Message) -> None:
     try:
@@ -460,8 +484,9 @@ async def command_helpaa(msg: Message):
               "/get_mails - список загруженных емайлов\n" \
               "/get_reg_mails список емайлов по которым УЖЕ вступили \n" \
               "/get_free_mails список емайлов по которым еще НЕ вступили \n" \
-              "/update_mails_gk  обновляет список емайлов из геткурса\n" \
-              "/delete_gk TOKEN  удалит лишних после обновления базы из GK\n" \
+              "/update_mails_gk  формирует обновленный список пользователей, и пользователей для удаления из канала и из списка разрешенных \n" \
+              "/get_gkupd  выдаст обновленный список пользователей, и пользователей для удаления из канала и из списка разрешенных \n" \
+              "/delete_gk TOKEN  обновленный список пользователей, и удалит пользоваелей из списка разрешенных и из канала\n" \
               "/set_mode [norm, min] - отключени помощника\n\n" \
               "Для владельца\n" \
               "/set_channel [test, rum, rum2] - выбор канала, для теста или использования\n" \
