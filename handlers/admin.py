@@ -13,6 +13,7 @@ import shutil
 import conections
 from filters import myfilters
 from utils import utils
+import asyncio
 
 router = Router()
 
@@ -127,6 +128,8 @@ async def command_start_handler(message: Message) -> None:
                         f"User {user_email} with id {user_tlg_id} in BD, but Can't delete it from channel. His status is {chat_member.status}")
             else:
                 await message.answer(f"User {user_email} NOT in BD. Can't delete it from channel.")
+            await asyncio.sleep(1)
+
 
         init_data.Random_str = utils.gen_rnd_str()
         init_data.Emails_to_delete_from_allow_list = [][:]
