@@ -9,7 +9,7 @@ import asyncio
 
 
 async def big_send(chat_id, content, sep="\n", tag=""):
-    await bot.send_message(chat_id, f"!!! {tag} = {len(content)} !!!" )
+    await bot.send_message(chat_id, f"!!! {tag} = {len(content)} !!!")
     reply = sep.join(content)
     if len(reply) > 4096:
         await bot.send_message(chat_id, f"== {tag} BEGIN ==")
@@ -99,3 +99,16 @@ def update_interaction_answer(mode):
         return unpuck_json(config.Interaction_file_nameM), unpuck_json(config.Answers_file_nameM)
     else:
         return unpuck_json(config.Interaction_file_name), unpuck_json(config.Answers_file_name)
+
+
+def make_respose_data(data: list, format: str = "auto", file_name: str = "temp_file.txt") -> str:
+    try:
+        if (format == 'f') or (format == "auto" and len(data) >= 100):
+            with open(file_name, "w", encoding='utf-8') as txtf:
+                # итерация по строкам
+                txtf.write("\n".join(list(map(lambda x: x.lower(), data))))
+                return file_name
+        else:
+
+    except Exception as e:
+        create_bot.print_error_message(__name__, inspect.currentframe().f_code.co_name, e)

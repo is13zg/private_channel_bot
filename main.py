@@ -8,7 +8,6 @@ logger = logging.getLogger(__name__)
 
 
 async def main() -> None:
-    # add interval task
     scheduler = AsyncIOScheduler()
     scheduler.add_job(admin.mails_update, trigger="interval", seconds=600)
     scheduler.start()

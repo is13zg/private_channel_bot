@@ -53,7 +53,8 @@ async def mails_update(message: Message = None) -> None:
     try:
         user_emails = await conections.get_users(config.rm_club_member_list_gk_group_id)
         user_emails = list(map(lambda x: x.lower(), user_emails))
-
+        # добавляем в полученные из геткурса нз емайлов
+        user_emails.extend(init_data.Emails_NZ_list)
         # выбираем в какой чат будем отправлять инфу
         if message == None:
             chat_id = config.Support_chat_id
@@ -64,15 +65,18 @@ async def mails_update(message: Message = None) -> None:
         delete_users_emails = set(init_data.Email_user_list).difference(user_emails)
 
         # отправляем НОВЫЕ почты
-        await utils.big_send(chat_id, new_users_emails, sep=" ", tag="GK_UPD NEW mails")
+        # await utils.big_send(chat_id, new_users_emails, sep=" ", tag="GK_UPD NEW mails")
+        await bot.send_message(chat_id, f"!!! GK_UPD NEW mails = {len(new_users_emails)} !!!")
 
         # отправляем почты которые будут удаляться из списка разрешенных
-        await utils.big_send(chat_id, delete_users_emails, sep=" ", tag="GK_UPD DEL mails from allowed list")
+        # await utils.big_send(chat_id, delete_users_emails, sep=" ", tag="GK_UPD DEL mails from allowed list")
+        await bot.send_message(chat_id, f"!!! GK_UPD DEL mails from allowed list = {len(delete_users_emails)} !!!")
 
         # отправляем почты которые будут удаляться из канала рум клуба
         current_users_in_channel = init_data.db.get_emails()
         delete_users_from_channel = set(current_users_in_channel).intersection(delete_users_emails)
-        await utils.big_send(chat_id, delete_users_from_channel, sep="\n", tag="GK_UPD DEL users from channel ")
+        # await utils.big_send(chat_id, delete_users_from_channel, sep="\n", tag="GK_UPD DEL users from channel ")
+        await bot.send_message(chat_id, f"!!! GK_UPD DEL users from channel = {len(delete_users_from_channel)} !!!")
 
         await bot.send_message(chat_id, f"Write token {init_data.Random_str} after /delete_gk command in private\n"
                                         f"Example: <pre>/delete_gk {init_data.Random_str} </pre>")
@@ -122,6 +126,7 @@ async def command_start_handler(message: Message) -> None:
                 if user_kicked:
                     init_data.db.del_user_from_db(user_tlg_id)
                     await message.answer(f"User {user_email} delete from channel.")
+                    await bot.send_message(chat_id=user_tlg_id, text=init_data.messages_to_user["bye"])
                 else:
                     chat_member = await bot.get_chat_member(config.Chanel_Id, user_tlg_id)
                     await message.answer(
@@ -129,7 +134,6 @@ async def command_start_handler(message: Message) -> None:
             else:
                 await message.answer(f"User {user_email} NOT in BD. Can't delete it from channel.")
             await asyncio.sleep(1)
-
 
         init_data.Random_str = utils.gen_rnd_str()
         init_data.Emails_to_delete_from_allow_list = [][:]
@@ -459,44 +463,45 @@ async def command_state(message: Message) -> None:
 @router.message(Command(commands=["helpaa"]), myfilters.IsAdmin())
 async def command_helpaa(msg: Message):
     try:
-        txt = "Для админов\n" \
-              "Чтобы обновить сценарий взаидействия с пользователем отправьте файл interaction.json\n" \
+        txt = "Для админов\n\n" \
+              "Чтобы обновить сценарий взаидействия с пользователем отправьте  <u>interaction.json</u>\n" \
               "\n" \
-              "Чтобы обновить ответы отправьте файл answers.json\n" \
+              "Чтобы обновить ответы - <u>answers.json</u>\n" \
               "\n" \
-              "Чтобы обновить Емайлы пользователей отправьте файл NEW_LIST_OF_USER_EMAILS.txt\n" \
+              "Чтобы обновить Емайлы пользователей - <u>NEW_LIST_OF_USER_EMAILS.txt</u>\n" \
+              "\n" \
+              "Чтобы обновить НЗ Емайлы  - <u>NEW_LIST_OF_NZ_USER_EMAILS.txt</u>\n" \
+              "\n" \
+              "Чтобы обновить файл для удаления  - <u>LIST_OF_DELETE_USERS.txt</u>\n" \
+              "\n" \
+              "Чтобы обновить файл с собщениями  - <u>messages_to_user.json</u>\n" \
               "\n" \
               "/reserv - бот выдаст текущие (main.db answers.json interaction.json emails.txt)\n" \
-              "/delete [token] [useremail1] [useremail2] ... \n" \
-              "    удаляет пользователей с емайлами useremail1 и useremail2 из канала и из базы,\n" \
-              "    можно подставить любое кол-во емайлов от 1 до 100\n" \
-              "    чтобы получить токен введите /delete\n" \
-              "/new_mails [token] [useremail1] [useremail2] ...	\n" \
-              "    удаляет ВСЕ существующие емайлы по которым выдается доступ\n" \
-              "    и создает новый список с емайлами useremail1 и useremail2 .\n" \
-              "    можно подставить любое кол-во емайлов от 1 до 100\n" \
-              "    чтобы получить токен введите /newmails\n" \
-              "/add_mails [useremail1] [useremail2] ... 	\n" \
-              "    добавляет в список с емайлами, емайлы useremail1 и useremail2\n" \
-              "    можно подставить любое кол-во емайлов от 1 до 100\n" \
-              "    т.е. список дополнится а не обновится\n" \
               "/stat - покажет общее число пользователей взаимодействоваших с ботом\n" \
               "     число людей, которые получили по емайлу ссылку для входа в канала\n" \
               "    и число свободных емайлов, по которым никто не вступил\n" \
-              "/delete_from_old_rum_club [token] удалить пользователей из старого канала РУМКЛУБА\n" \
-              "/get_mails - список загруженных емайлов\n" \
-              "/get_reg_mails список емайлов по которым УЖЕ вступили \n" \
-              "/get_free_mails список емайлов по которым еще НЕ вступили \n" \
+              "/get_mails [f, msg, auto]- список всех емайлов кому доступно вступление без НЗ емайлов\n" \
+              "/get_reg_mails [f, msg, auto] список емайлов по которым УЖЕ вступили \n" \
+              "/get_free_mails [f, msg, auto] список емайлов по которым еще НЕ вступили \n" \
               "/update_mails_gk  формирует обновленный список пользователей, и пользователей для удаления из канала и из списка разрешенных \n" \
               "/get_gkupd  выдаст обновленный список пользователей, и пользователей для удаления из канала и из списка разрешенных \n" \
-              "/delete_gk TOKEN  обновленный список пользователей, и удалит пользоваелей из списка разрешенных и из канала\n" \
-              "/set_mode [norm, min] - отключени помощника\n\n" \
-              "Для владельца\n" \
-              "/set_channel [test, rum, rum2] - выбор канала, для теста или использования\n" \
+              "/delete_gk TOKEN  удалит  пользоваелей из списка разрешенных и из канала по списку удаляемых\n" \
+              "/set_mode [norm, min] - отключение помощника\n\n" \
+              "/helpss - список специфических команд\n"
+        await msg.answer(txt, parse_mode="HTML")
+        return
+    except Exception as e:
+        await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
+
+@router.message(Command(commands=["helpss"]), myfilters.IsAdmin())
+async def command_helpaa(msg: Message):
+    try:
+        txt = "/set_channel [test, rum, rum2] - выбор канала, для теста или использования\n" \
               "/state - состояние переменных\n" \
               "/check_emails [on, off] - выбор проверять ли емайл для доступа к каналу\n" \
-              "/bd_mails_lower - приведет все емайлы к нижнему регистру\n"
-        await msg.answer(txt)
+              "/delete_from_old_rum_club [token] удалить пользователей из старого канала РУМКЛУБА\n" \
+              "/bd_mails_lower - приведет все емайлы в бд и спмсках нижнему регистру\n"
+        await msg.answer(txt, parse_mode="HTML")
         return
     except Exception as e:
         await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
