@@ -1,3 +1,5 @@
+import os
+
 from create_bot import bot
 import create_bot
 import json
@@ -6,24 +8,25 @@ import random
 import string
 import config
 import asyncio
+from aiogram.types import FSInputFile
 
 
 async def big_send(chat_id, content, sep="\n", tag=""):
-    await bot.send_message(chat_id, f"!!! {tag} = {len(content)} !!!")
+    await bot.send_message(chat_id, f"!!! {tag} = len {len(content)} !!!", disable_notification=True)
     reply = sep.join(content)
     if len(reply) > 4096:
-        await bot.send_message(chat_id, f"== {tag} BEGIN ==")
+        await bot.send_message(chat_id, f"== {tag} BEGIN ==", disable_notification=True)
 
         while len(reply) > 4096:
             x = reply[:4096]
             i = x.rfind(sep)
-            await bot.send_message(chat_id, x[:i])
+            await bot.send_message(chat_id, x[:i], disable_notification=True)
             await asyncio.sleep(0.3)
             reply = reply[i:]
         if len(reply) > 0:
-            await bot.send_message(chat_id, reply)
+            await bot.send_message(chat_id, reply, disable_notification=True)
 
-        await bot.send_message(chat_id, f"== {tag} END ==")
+        await bot.send_message(chat_id, f"== {tag} END ==", disable_notification=True)
     else:
         await bot.send_message(chat_id, reply)
 
@@ -101,14 +104,19 @@ def update_interaction_answer(mode):
         return unpuck_json(config.Interaction_file_name), unpuck_json(config.Answers_file_name)
 
 
-def make_respose_data(data: list, format: str = "auto", file_name: str = "temp_file.txt") -> str:
+async def make_response_data(chat_id: int, data: list, frmt: str = "auto", send_name: str = "current_list") -> str:
     try:
-        if (format == 'f') or (format == "auto" and len(data) >= 100):
-            with open(file_name, "w", encoding='utf-8') as txtf:
-                # итерация по строкам
+        if len(data) == 0:
+            await bot.send_message(chat_id, text=f"{send_name} is empty !!!", disable_notification=True)
+            return
+        if (frmt == 'f') or (frmt == "auto" and len(data) >= 100):
+            with open(send_name + ".txt", "w", encoding='utf-8') as txtf:
                 txtf.write("\n".join(list(map(lambda x: x.lower(), data))))
-                return file_name
-        else:
+            await bot.send_document(chat_id, FSInputFile(send_name + ".txt"), disable_notification=True)
+            os.remove(send_name + ".txt")
+
+        elif (frmt == "msg") or (frmt == "auto" and len(data) < 100):
+            await big_send(chat_id, data, tag=send_name, disable_notification=True)
 
     except Exception as e:
         create_bot.print_error_message(__name__, inspect.currentframe().f_code.co_name, e)

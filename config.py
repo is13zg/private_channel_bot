@@ -6,6 +6,7 @@ Interaction_file_nameM = "ext2/interactionM.json"
 Answers_file_nameM = "ext2/answersM.json"
 Emails_file_name = "ext2/emails.txt"
 Emails_NZ_file_name = "ext2/emails_nz.txt"
+Emails_to_delete_file_name = "ext2/emails_to_delete.txt"
 Messages_to_user_file_name = "ext2/messages_to_user.json"
 Url_to_join = "https://t.me/+MsCIkuaVYptiOTBi"
 Rum_club_Chanel_Id = -1001602742238  # rumclub
