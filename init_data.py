@@ -2,6 +2,8 @@ from db import Database
 import config
 from utils import utils
 
+
+update_from_gk = False
 MIN_mode = True
 Chek_email_before_join = True
 db = Database(config.BD_name)
@@ -22,9 +24,7 @@ Email_user_list.extend(Emails_NZ_list)
 Emails_to_delete_from_allow_list = utils.get_emails_from_file(config.Emails_to_delete_file_name)
 
 # список пользователей которые есть в канале, но будут удалены из него
-Emails_to_delete_from_channel = list(set(db.get_emails()).intersection(Emails_to_delete_from_allow_list))
+Emails_to_delete_from_channel = list(set(db.get_emails()).difference(Email_user_list))
 
 # список в котором хранится список полученных пользователей из ГК
-Emails_new_user_list = []
-
-
+# Emails_new_user_list = []

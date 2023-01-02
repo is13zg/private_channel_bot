@@ -14,8 +14,14 @@ import conections
 from filters import myfilters
 from utils import utils
 import asyncio
+from aiogram.exceptions import TelegramBadRequest
 
 router = Router()
+
+
+@router.message(Command(commands=["testt"]), myfilters.IsOwner())
+async def testt(message: Message) -> None:
+    await message.answer(text=init_data.messages_to_user["bye"])
 
 
 @router.message(Command(commands=["req"]), myfilters.IsOwner())
@@ -30,44 +36,63 @@ async def req_exmp(message: Message) -> None:
     await utils.make_response_data(message.chat.id, res, send_name="REQUEST_RESULT")
 
 
+@router.message(Command(commands=["ismember"]), myfilters.IsOwner())
+async def req_exmp(message: Message) -> None:
+    msg_ls = message.text.split()
+    if len(msg_ls) < 1:
+        await message.answer("need id or mail")
+        return
+    else:
+        if msg_ls[1].isdigit():
+            id = int(msg_ls[1])
+        elif init_data.db.user_exists(msg_ls[1]):
+            id = int(init_data.db.get_user_tlg_id())
+        else:
+            await message.answer("need id or mail")
+            return
+
+        chat_member = await bot.get_chat_member(config.Chanel_Id, id)
+        await message.answer(text=chat_member.status)
+
+
+async def update_mails_from_gk_task():
+    if init_data.update_from_gk:
+        mails_update()
+
+
 @router.message(Command(commands=["update_mails_gk"]), myfilters.IsAdmin())
-async def mails_update(message: Message = config.Support_chat_id) -> None:
+async def mails_update(message: Message = None) -> None:
     try:
         user_emails = await conections.get_users(config.rm_club_member_list_gk_group_id)
         user_emails = list(map(lambda x: x.lower(), user_emails))
-        # добавляем в полученные из геткурса нз емайлов
-        user_emails.extend(init_data.Emails_NZ_list)
+
         # выбираем в какой чат будем отправлять инфу
         if message is None:
             chat_id = config.Support_chat_id
         else:
             chat_id = message.chat.id
 
-        new_users_emails = set(user_emails).difference(init_data.Email_user_list)
-        delete_users_emails = set(init_data.Email_user_list).difference(user_emails).difference(
-            set(init_data.Emails_NZ_list))
+        # посчитаем сколько удалиься из списка разрешенных
+        del_from_allow_list_count = len(set(init_data.Email_user_list).difference(set(user_emails)))
 
-        # отправляем НОВЫЕ почты
-        # await utils.big_send(chat_id, new_users_emails, sep=" ", tag="GK_UPD NEW mails")
-        await bot.send_message(chat_id, f"!!! GK_UPD NEW mails = {len(new_users_emails)} !!!")
+        # обновялем текущий список разрешенных емайлов
+        init_data.Email_user_list = user_emails
+        utils.update_mails_list()
 
-        # отправляем почты которые будут удаляться из списка разрешенных
-        # await utils.big_send(chat_id, delete_users_emails, sep=" ", tag="GK_UPD DEL mails from allowed list")
-        await bot.send_message(chat_id, f"!!! GK_UPD DEL mails from allowed list = {len(delete_users_emails)} !!!")
+        # отправляем кол-во почт которые удалятся из списка разрешенных
+        await bot.send_message(chat_id, f"GK_UPD del from allow mails ls count = {del_from_allow_list_count}")
 
-        # отправляем почты которые будут удаляться из канала рум клуба
-        delete_users_from_channel = set(init_data.db.get_emails()).intersection(delete_users_emails)
-        # await utils.big_send(chat_id, delete_users_from_channel, sep="\n", tag="GK_UPD DEL users from channel ")
-        await bot.send_message(chat_id, f"!!! GK_UPD DEL users from channel = {len(delete_users_from_channel)} !!!")
+        # отправляем кол-во НОВЫх почт
+        await bot.send_message(chat_id, f"GK_UPD new mails count = {len(init_data.Email_user_list)}")
+
+        # отправляем КОЛ_ВО почт которые будут удаляться из канала
+        await bot.send_message(chat_id,
+                               f"GK_UPD DEL mails from chnl count = {len(init_data.Emails_to_delete_from_channel)}")
 
         await bot.send_message(chat_id,
                                f"to delete users, write token {init_data.Random_str} after /delete_gk command in private\n"
                                f"Example: <pre>/delete_gk {init_data.Random_str} </pre>")
 
-        # сохраняем списки для удаления , что то в файл
-        init_data.Emails_to_delete_from_channel.extend(delete_users_from_channel)
-        init_data.Emails_to_delete_from_allow_list.extend(delete_users_emails)
-        utils.new_emails_to_file(init_data.Emails_to_delete_from_allow_list, config.Emails_to_delete_file_name)
     except Exception as e:
         await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
 
@@ -77,84 +102,41 @@ async def mails_update(message: Message = config.Support_chat_id) -> None:
 async def command_start_handler(message: Message) -> None:
     try:
 
-        user_emails = message.text.split()
-        if len(user_emails) == 1:
-            user_emails.append("")
-        if user_emails[1] != init_data.Random_str:
+        msg_ls = message.text.split()
+        if len(msg_ls) == 1:
+            msg_ls.append("")
+        if msg_ls[1] != init_data.Random_str:
             await message.answer(f"Write token {init_data.Random_str} after /delete_gk command\n"
                                  f"Example: <pre>/delete_gk {init_data.Random_str} </pre>")
             return
 
-        if len(init_data.Emails_to_delete_from_channel) == 0:
+        if len(init_data.Emails_to_delete_from_allow_list) == 0:
             await message.answer("list to delete is empty")
             return
 
         user_emails = init_data.Emails_to_delete_from_channel
-        for user_email in user_emails:
-            await message.answer(f"deleting user {user_email} ...")
-            if init_data.db.user_exists(user_email):
-                user_tlg_id = init_data.db.get_user_tlg_id(user_email)
-                user_kicked = await bot.kick_chat_member(config.Chanel_Id, user_tlg_id)
-                if user_kicked:
-                    init_data.db.del_user_from_db(user_tlg_id)
-                    await message.answer(f"User {user_email} delete from channel.")
-                    await bot.send_message(chat_id=user_tlg_id, text=init_data.messages_to_user["bye"])
+        if len(user_emails) == 0:
+            await message.answer("list to delete from channel is empty")
+        else:
+            for user_email in user_emails:
+                await message.answer(f"deleting user {user_email} ...")
+                if init_data.db.user_exists(user_email):
+                    user_tlg_id = init_data.db.get_user_tlg_id(user_email)
+                    user_kicked = await bot.kick_chat_member(config.Chanel_Id, user_tlg_id)
+                    if user_kicked:
+                        init_data.db.del_user_from_db(user_tlg_id)
+                        await message.answer(f"User {user_email} delete from channel.")
+                        await bot.send_message(chat_id=user_tlg_id, text=init_data.messages_to_user["bye"])
+                    else:
+                        chat_member = await bot.get_chat_member(config.Chanel_Id, user_tlg_id)
+                        await message.answer(
+                            f"User {user_email} with id {user_tlg_id} in BD, but Can't delete it from channel. His status is {chat_member.status}")
                 else:
-                    chat_member = await bot.get_chat_member(config.Chanel_Id, user_tlg_id)
-                    await message.answer(
-                        f"User {user_email} with id {user_tlg_id} in BD, but Can't delete it from channel. His status is {chat_member.status}")
-            else:
-                await message.answer(f"User {user_email} NOT in BD. Can't delete it from channel.")
-            await asyncio.sleep(1)
-
+                    await message.answer(f"User {user_email} NOT in BD. Can't delete it from channel.")
+                await asyncio.sleep(1)
         init_data.Random_str = utils.gen_rnd_str()
-        init_data.Emails_to_delete_from_allow_list = [][:]
-        init_data.Emails_to_delete_from_channel = [][:]
-        init_data.Email_user_list = init_data.Emails_new_user_list[:]
-        init_data.Email_user_list.extend(init_data.Emails_NZ_list)
-        init_data.Emails_new_user_list = [][:]
-        utils.new_emails_to_file(init_data.Email_user_list, config.Emails_file_name)
-        utils.new_emails_to_file(init_data.Emails_to_delete_from_allow_list, config.Emails_to_delete_file_name)
-        return
-    except Exception as e:
-        await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
-
-
-@router.message(Command(commands=["delete"]), myfilters.IsAdmin())
-async def command_start_handler(message: Message) -> None:
-    try:
-
-        user_emails = message.text.split()
-        if len(user_emails) == 1:
-            user_emails.append("")
-        if user_emails[1] != init_data.Random_str:
-            await message.answer(f"Write token {init_data.Random_str} after /delete command\n"
-                                 f"Example: <pre>/delete {init_data.Random_str} ivanov92@mail.ru</pre>")
-            return
-
-        if len(user_emails) == 2:
-            await message.answer("You must write TOKEN and any mails")
-            return
-
-        user_emails = user_emails[2:]
-        for user_email in user_emails:
-            if init_data.db.user_exists(user_email):
-                user_tlg_id = init_data.db.get_user_tlg_id(user_email)
-                user_kicked = await bot.kick_chat_member(config.Chanel_Id, user_tlg_id)
-                if user_kicked:
-                    init_data.db.del_user_from_db(user_tlg_id)
-                    await message.answer(f"User {user_email} delete from channel.")
-                else:
-                    chat_member = await bot.get_chat_member(config.Chanel_Id, user_tlg_id)
-                    await message.answer(
-                        f"User {user_email} with id {user_tlg_id} in BD, but Can't delete it from channel. His status is {chat_member.status}")
-            else:
-                await message.answer(f"User {user_email} NOT in BD. Can't delete it from channel.")
-            init_data.Email_user_list.remove(user_email)
-            await message.answer(f"User email {user_email} delete from user emails list\n.")
-
-        utils.new_emails_to_file(init_data.Email_user_list, config.Emails_file_name)
-        init_data.Random_str = utils.gen_rnd_str()
+        # очищаем списки для удаления
+        utils.clear_delete_list_and_file()
         return
     except Exception as e:
         await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
@@ -198,15 +180,42 @@ async def command_start_handler(message: Message) -> None:
 @router.message(Command(commands=["reserv"]), myfilters.IsAdmin())
 async def make_reserv_data(msg: Message):
     try:
-        await bot.send_document(msg.chat.id, FSInputFile(config.BD_name))
-        await bot.send_document(msg.chat.id, FSInputFile(config.Emails_file_name))
-        await bot.send_document(msg.chat.id, FSInputFile(config.Emails_NZ_file_name))
-        await bot.send_document(msg.chat.id, FSInputFile(config.Emails_to_delete_file_name))
-        await bot.send_document(msg.chat.id, FSInputFile(config.Messages_to_user_file_name))
-        await bot.send_document(msg.chat.id, FSInputFile(config.Interaction_file_name))
-        await bot.send_document(msg.chat.id, FSInputFile(config.Answers_file_name))
-        await bot.send_document(msg.chat.id, FSInputFile(config.Interaction_file_nameM))
-        await bot.send_document(msg.chat.id, FSInputFile(config.Answers_file_nameM))
+        try:
+            await bot.send_document(msg.chat.id, FSInputFile(config.BD_name))
+        except TelegramBadRequest as e:
+            await bot.send_message(msg.chat.id, f"can't send {config.BD_name} because {e}")
+        try:
+            await bot.send_document(msg.chat.id, FSInputFile(config.Emails_file_name))
+        except TelegramBadRequest as e:
+            await bot.send_message(msg.chat.id, f"can't send {config.Emails_file_name} because {e}")
+        try:
+            await bot.send_document(msg.chat.id, FSInputFile(config.Emails_NZ_file_name))
+        except TelegramBadRequest as e:
+            await bot.send_message(msg.chat.id, f"can't send {config.Emails_NZ_file_name} because {e}")
+        try:
+            await bot.send_document(msg.chat.id, FSInputFile(config.Messages_to_user_file_name))
+        except TelegramBadRequest as e:
+            await bot.send_message(msg.chat.id, f"can't send {config.Messages_to_user_file_name} because {e}")
+        try:
+            await bot.send_document(msg.chat.id, FSInputFile(config.Interaction_file_name))
+        except TelegramBadRequest as e:
+            await bot.send_message(msg.chat.id, f"can't send {config.Interaction_file_name} because {e}")
+        try:
+            await bot.send_document(msg.chat.id, FSInputFile(config.Answers_file_name))
+        except TelegramBadRequest as e:
+            await bot.send_message(msg.chat.id, f"can't send {config.Answers_file_name} because {e}")
+        try:
+            await bot.send_document(msg.chat.id, FSInputFile(config.Interaction_file_nameM))
+        except TelegramBadRequest as e:
+            await bot.send_message(msg.chat.id, f"can't send {config.Interaction_file_nameM} because {e}")
+        try:
+            await bot.send_document(msg.chat.id, FSInputFile(config.Answers_file_nameM))
+        except TelegramBadRequest as e:
+            await bot.send_message(msg.chat.id, f"can't send {config.Answers_file_nameM} because {e}")
+        try:
+            await bot.send_document(msg.chat.id, FSInputFile(config.Emails_to_delete_file_name))
+        except TelegramBadRequest as e:
+            await bot.send_message(msg.chat.id, f"Can't send {config.Emails_to_delete_file_name} because {e}")
         return
     except Exception as e:
         await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
@@ -215,10 +224,8 @@ async def make_reserv_data(msg: Message):
 @router.message(F.content_type.in_({'document'}), myfilters.IsAdmin())
 async def get_files(message: Message):
     try:
-
         file_id = message.document.file_id
 
-        print(message.document.file_name)
         real_file_name = ""
         if message.document.file_name in config.Interaction_file_name:
             real_file_name = config.Interaction_file_name
@@ -237,6 +244,7 @@ async def get_files(message: Message):
         elif message.document.file_name == "messages_to_user.json":
             real_file_name = config.Messages_to_user_file_name
         else:
+            await message.answer("File name not correct.")
             return
 
         ls = real_file_name.split("/")
@@ -256,18 +264,54 @@ async def get_files(message: Message):
         shutil.move(message.document.file_name, real_file_name)
 
         if real_file_name == config.Emails_file_name:
+            # загрузили новый файл с разрешенными почтами
+            # обновялем текущий список разрешенных емайлов
             init_data.Email_user_list = utils.get_emails_from_file(config.Emails_file_name)
-            utils.new_emails_to_file(init_data.Email_user_list, config.Emails_file_name)
-            init_data.Email_user_list.extend(init_data.Emails_NZ_list)
+
+            utils.update_mails_list()
+            # # сохраняем в файл
+            # utils.new_emails_to_file(init_data.Email_user_list, config.Emails_file_name)
+            # # добавляем в текущий список НЗ емайлы
+            # init_data.Email_user_list.extend(init_data.Emails_NZ_list)
+            # # смотрим кого надо удалить из канала
+            # init_data.Emails_to_delete_from_channel = list(
+            #     set(init_data.db.get_emails()).difference(init_data.Email_user_list))
+
+
         elif real_file_name == config.Emails_NZ_file_name:
-            init_data.Email_user_list = list(set(init_data.Email_user_list).difference(init_data.Emails_NZ_list))
+            # загрузили новый файл с НЗ почтами
+            # удаляем из текущего списка разрешенных, список старых НЗ почт
+            init_data.Emails_user_list = list(set(init_data.Email_user_list).difference(init_data.Emails_NZ_list))
+            # обновялем текущий список НЗ емайлов
             init_data.Emails_NZ_list = utils.get_emails_from_file(config.Emails_NZ_file_name)
-            utils.new_emails_to_file(init_data.Emails_NZ_list, config.Emails_NZ_file_name)
-            init_data.Email_user_list.extend(init_data.Emails_NZ_list)
-            
+            # # сохраняем в файл НЗ емайлы
+            # utils.new_emails_to_file(init_data.Emails_NZ_list, config.Emails_NZ_file_name)
+
+            utils.update_mails_list()
+            # добавляем в список разрешенных НЗ емайлы
+            # init_data.Email_user_list.extend(init_data.Emails_NZ_list)
+            # # смотрим кого надо удалить из канала
+            # init_data.Emails_to_delete_from_channel = list(
+            #     set(init_data.db.get_emails()).difference(init_data.Email_user_list))
+
         elif real_file_name == config.Emails_to_delete_file_name:
+            # загрузили новый файл с почтами для удаления
+            # обновялем текущий список для удаления
             init_data.Emails_to_delete_from_allow_list = utils.get_emails_from_file(config.Emails_to_delete_file_name)
-            utils.new_emails_to_file(init_data.Emails_to_delete_from_allow_list, config.Emails_to_delete_file_name)
+            # сохраняем в файл емайлы для удаления
+            # utils.new_emails_to_file(init_data.Emails_to_delete_from_allow_list, config.Emails_to_delete_file_name)
+            # # формируем список с новыми разрешенными пользователями (убираем из текущего, тех кого надо удалить)
+            init_data.Email_user_list = list(
+                set(init_data.Email_user_list).difference(init_data.Emails_to_delete_from_allow_list))
+            utils.update_mails_list()
+            # # сохраняем в файл разрешенных пользователей
+            # utils.new_emails_to_file(init_data.Email_user_list, config.Emails_file_name)
+            # # добавляем в список разрешенных НЗ емайлы
+            # init_data.Email_user_list.extend(init_data.Emails_NZ_list)
+            # # смотрим кого надо удалить из канала
+            # init_data.Emails_to_delete_from_channel = list(
+            #     set(init_data.db.get_emails()).difference(init_data.Email_user_list))
+
         elif real_file_name == config.Messages_to_user_file_name:
             init_data.messages_to_user = utils.unpuck_json(config.Messages_to_user_file_name)
         else:
@@ -277,6 +321,7 @@ async def get_files(message: Message):
 
         await message.answer(f"File {message.document.file_name} was download")
         return
+
     except Exception as e:
         await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
 
@@ -319,17 +364,15 @@ async def get_mails_handler(msg: Message):
             elif msg_ls[2] in email_list_tag_set:
                 email_list_tag = msg_ls[2]
 
-        print(f"command is {msg_ls[0]} {email_list_tag} {frmt}")
-
         send_ls_name = email_list_tag.upper() + "_MAILS"
         if email_list_tag == "all":
             await utils.make_response_data(msg.chat.id, init_data.Email_user_list, frmt=frmt, send_name=send_ls_name)
         elif email_list_tag == "reg":
-            emails = set([x[0] for x in init_data.db.get_emails()])
+            emails = list(set([x[0] for x in init_data.db.get_emails()]))
             await utils.make_response_data(msg.chat.id, emails, frmt=frmt, send_name=send_ls_name)
         elif email_list_tag == "free":
-            emails = set([x[0] for x in init_data.db.get_emails()])
-            free_emails = set(init_data.Email_user_list).difference(emails)
+            emails = list(set([x[0] for x in init_data.db.get_emails()]))
+            free_emails = list(set(init_data.Email_user_list).difference(emails))
             await utils.make_response_data(msg.chat.id, free_emails, frmt=frmt, send_name=send_ls_name)
         elif email_list_tag == "nz":
             await utils.make_response_data(msg.chat.id, init_data.Emails_NZ_list, frmt=frmt, send_name=send_ls_name)
@@ -344,9 +387,6 @@ async def get_mails_handler(msg: Message):
                                            send_name="del_mails_ls".upper())
             await utils.make_response_data(msg.chat.id, init_data.Emails_to_delete_from_channel, frmt=frmt,
                                            send_name="del_chnl_mails".upper())
-        elif email_list_tag == "newgk":
-            await utils.make_response_data(msg.chat.id, init_data.Emails_new_user_list, frmt=frmt,
-                                           send_name=send_ls_name)
         else:
             await msg.answer("No response mail list")
 
@@ -399,6 +439,28 @@ async def command_set_channel_handler(message: Message) -> None:
         await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
 
 
+@router.message(Command(commands=["set_update_from_gk"]), myfilters.IsAdmin())
+async def command_set_channel_handler(message: Message) -> None:
+    try:
+        if len(message.text.split()) > 1:
+            state = message.text.split()[1].lower()
+        else:
+            await message.answer("WHERE off | on ?")
+            return
+
+        if state == "on":
+            init_data.update_from_gk = True
+            await message.answer("Set update_from_gk ON")
+
+        if state == "off":
+            init_data.update_from_gk = False
+            await message.answer("Set update_from_gk OFF")
+
+        return
+    except Exception as e:
+        await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
+
+
 @router.message(Command(commands=["set_channel"]), myfilters.IsOwner())
 async def command_set_channel_handler(message: Message) -> None:
     try:
@@ -436,7 +498,8 @@ async def command_state(message: Message) -> None:
         if config.Chanel_Id == config.Rum_club_20_Chanel_Id:
             t1 = "Rum2.0"
 
-        txt = f"Channel_id={t1}\nCheck_emails={init_data.Chek_email_before_join}"
+        txt = f"Channel_id={t1}\nCheck_emails={init_data.Chek_email_before_join}\n" \
+              f"Min_mid={init_data.MIN_mode}\nAuto_upd_from_gk={init_data.update_from_gk}"
         await message.answer(txt)
         return
     except Exception as e:
@@ -476,7 +539,7 @@ async def command_helpaa(msg: Message):
               "   для удаления из канала \n" \
               "   для удаления из списка разрешенных \n" \
               "/set_mode [norm, min] - отключение помощника\n" \
-              "/get_mails [all*, reg, free, nz,  del_mails_ls, del_chnl, del, newgk] [f, msg, auto*] \n" \
+              "/get_mails [all*, reg, free, nz,  del_mails_ls, del_chnl, del] [f, msg, auto*] \n" \
               "    all* - по умолч, список всех емайлов кому доступно вступление \n" \
               "   reg - список емайлов по которым УЖЕ вступили \n" \
               "   free - список емайлов по которым еще НЕ вступили \n" \
@@ -484,10 +547,9 @@ async def command_helpaa(msg: Message):
               "   del_mails_ls - список емайлов из ГК для удаления из списка разрешенных \n" \
               "   del_chnl - список емайлов из ГК для удаления из канала  \n" \
               "   del - оба списка для удаления  \n" \
-              "   newgk - обновленный список пользователей, которые получены из ГК \n" \
               "   [ f - список файлом, msg - список сообщением, auto* по умолч, зависит от длинны списка, ] \n" \
-              "/update_mails_gk  обновляет список из ГК выдает списки del_mails_ls del_chnl newgk \n" \
-              "/delete_gk TOKEN  удалит del_chnl из канала, из списка del_mails_ls, обновит список по newgk \n\n" \
+              "/update_mails_gk  обновляет список разрешенных майлов из ГК формирует список на удаления из канала \n" \
+              "/delete_gk TOKEN  удалит del_chnl из канала \n\n" \
               "/helpss - список специфических команд\n"
         await msg.answer(txt, parse_mode="HTML")
         return
@@ -499,6 +561,7 @@ async def command_helpaa(msg: Message):
 async def command_helpaa(msg: Message):
     try:
         txt = "/set_channel [test, rum, rum2] - выбор канала, для теста или использования\n" \
+              "/set_update_from_gk [on, off] - вкл/выкл автообновления пользователей из ГК\n" \
               "/state - состояние переменных\n" \
               "/check_emails [on, off] - выбор проверять ли емайл для доступа к каналу\n" \
               "/delete_from_old_rum_club [token] удалить пользователей из старого канала РУМКЛУБА\n" \

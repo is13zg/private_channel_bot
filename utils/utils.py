@@ -9,6 +9,7 @@ import string
 import config
 import asyncio
 from aiogram.types import FSInputFile
+import init_data
 
 
 async def big_send(chat_id, content, sep="\n", tag=""):
@@ -104,7 +105,23 @@ def update_interaction_answer(mode):
         return unpuck_json(config.Interaction_file_name), unpuck_json(config.Answers_file_name)
 
 
-async def make_response_data(chat_id: int, data: list, frmt: str = "auto", send_name: str = "current_list") -> str:
+def update_mails_list():
+    # сохраняем в файл
+    new_emails_to_file(init_data.Email_user_list, config.Emails_file_name)
+    # добавляем в текущий список НЗ емайлы
+    init_data.Email_user_list.extend(init_data.Emails_NZ_list)
+    # смотрим кого надо удалить из канала
+    init_data.Emails_to_delete_from_channel = list(
+        set(init_data.db.get_emails()).difference(init_data.Email_user_list))
+
+
+def clear_delete_list_and_file():
+    init_data.Emails_to_delete_from_channel = [][:]
+    init_data.Emails_to_delete_from_allow_list = [][:]
+    new_emails_to_file(init_data.Emails_to_delete_from_allow_list, config.Emails_to_delete_file_name)
+
+
+async def make_response_data(chat_id: int, data: list, frmt: str = "auto", send_name: str = "current_list") -> None:
     try:
         if len(data) == 0:
             await bot.send_message(chat_id, text=f"{send_name} is empty !!!", disable_notification=True)
@@ -116,7 +133,7 @@ async def make_response_data(chat_id: int, data: list, frmt: str = "auto", send_
             os.remove(send_name + ".txt")
 
         elif (frmt == "msg") or (frmt == "auto" and len(data) < 100):
-            await big_send(chat_id, data, tag=send_name, disable_notification=True)
+            await big_send(chat_id, data, tag=send_name)
 
     except Exception as e:
         create_bot.print_error_message(__name__, inspect.currentframe().f_code.co_name, e)
