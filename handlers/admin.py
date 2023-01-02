@@ -37,7 +37,7 @@ async def req_exmp(message: Message) -> None:
 
 
 @router.message(Command(commands=["ismember"]), myfilters.IsOwner())
-async def req_exmp(message: Message) -> None:
+async def ismember(message: Message) -> None:
     msg_ls = message.text.split()
     if len(msg_ls) < 1:
         await message.answer("need id or mail")
@@ -99,7 +99,7 @@ async def mails_update(message: Message = None) -> None:
 
 # /delete_gk TOKEN  удалит лишних после обновления базы из GK
 @router.message(Command(commands=["delete_gk"]), myfilters.IsAdmin())
-async def command_start_handler(message: Message) -> None:
+async def delete_gk(message: Message) -> None:
     try:
 
         msg_ls = message.text.split()
@@ -118,22 +118,27 @@ async def command_start_handler(message: Message) -> None:
         if len(user_emails) == 0:
             await message.answer("list to delete from channel is empty")
         else:
+            counter = 0
             for user_email in user_emails:
-                await message.answer(f"deleting user {user_email} ...")
-                if init_data.db.user_exists(user_email):
-                    user_tlg_id = init_data.db.get_user_tlg_id(user_email)
-                    user_kicked = await bot.kick_chat_member(config.Chanel_Id, user_tlg_id)
-                    if user_kicked:
-                        init_data.db.del_user_from_db(user_tlg_id)
-                        await message.answer(f"User {user_email} delete from channel.")
-                        await bot.send_message(chat_id=user_tlg_id, text=init_data.messages_to_user["bye"])
+                try:
+                    await message.answer(f"To delete left {len(user_emails) - counter}\ndeleting user {user_email} ...")
+                    if init_data.db.user_exists(user_email):
+                        user_tlg_id = init_data.db.get_user_tlg_id(user_email)
+                        user_kicked = await bot.kick_chat_member(config.Chanel_Id, user_tlg_id)
+                        if user_kicked:
+                            init_data.db.del_user_from_db(user_tlg_id)
+                            await message.answer(f"User {user_email} delete from channel.")
+                            await bot.send_message(chat_id=user_tlg_id, text=init_data.messages_to_user["bye"])
+                        else:
+                            chat_member = await bot.get_chat_member(config.Chanel_Id, user_tlg_id)
+                            await message.answer(
+                                f"User {user_email} with id {user_tlg_id} in BD, but Can't delete it from channel. His status is {chat_member.status}")
                     else:
-                        chat_member = await bot.get_chat_member(config.Chanel_Id, user_tlg_id)
-                        await message.answer(
-                            f"User {user_email} with id {user_tlg_id} in BD, but Can't delete it from channel. His status is {chat_member.status}")
-                else:
-                    await message.answer(f"User {user_email} NOT in BD. Can't delete it from channel.")
-                await asyncio.sleep(1)
+                        await message.answer(f"User {user_email} NOT in BD. Can't delete it from channel.")
+                    await asyncio.sleep(1)
+                    counter += 1
+                except Exception as e:
+                    await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
         init_data.Random_str = utils.gen_rnd_str()
         # очищаем списки для удаления
         utils.clear_delete_list_and_file()
@@ -144,7 +149,7 @@ async def command_start_handler(message: Message) -> None:
 
 # удаляет пользователей из старого РУМ КЛУБА
 @router.message(Command(commands=["delete_from_old_rum_club"]), myfilters.IsOwner())
-async def command_start_handler(message: Message) -> None:
+async def delete_from_old_rum_club(message: Message) -> None:
     try:
 
         msg = message.text.split()
@@ -440,7 +445,7 @@ async def command_set_channel_handler(message: Message) -> None:
 
 
 @router.message(Command(commands=["set_update_from_gk"]), myfilters.IsAdmin())
-async def command_set_channel_handler(message: Message) -> None:
+async def set_update_from_gk(message: Message) -> None:
     try:
         if len(message.text.split()) > 1:
             state = message.text.split()[1].lower()
@@ -507,7 +512,7 @@ async def command_state(message: Message) -> None:
 
 
 @router.message(Command(commands=["bd_mails_lower"]), myfilters.IsOwner())
-async def command_state(message: Message) -> None:
+async def bd_mails_lower(message: Message) -> None:
     try:
         emails = set([x[0] for x in init_data.db.get_emails()])
         for mail in emails:
@@ -558,7 +563,7 @@ async def command_helpaa(msg: Message):
 
 
 @router.message(Command(commands=["helpss"]), myfilters.IsAdmin())
-async def command_helpaa(msg: Message):
+async def command_helpss(msg: Message):
     try:
         txt = "/set_channel [test, rum, rum2] - выбор канала, для теста или использования\n" \
               "/set_update_from_gk [on, off] - вкл/выкл автообновления пользователей из ГК\n" \

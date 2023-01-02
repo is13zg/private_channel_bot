@@ -112,7 +112,7 @@ def update_mails_list():
     init_data.Email_user_list.extend(init_data.Emails_NZ_list)
     # смотрим кого надо удалить из канала
     init_data.Emails_to_delete_from_channel = list(
-        set(init_data.db.get_emails()).difference(init_data.Email_user_list))
+        set([x[0] for x in init_data.db.get_emails()]).difference(init_data.Email_user_list))
 
 
 def clear_delete_list_and_file():
