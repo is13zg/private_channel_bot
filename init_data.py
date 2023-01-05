@@ -6,6 +6,8 @@ from utils import utils
 update_from_gk = False
 MIN_mode = True
 Chek_email_before_join = True
+update_from_gk_time = 60
+time_counter = 0
 db = Database(config.BD_name)
 
 Random_str = utils.gen_rnd_str()

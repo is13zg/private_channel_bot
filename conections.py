@@ -23,7 +23,9 @@ async def get_users(group_id: int) -> list:
     if json_resp['success']:
         export_id = json_resp['info']['export_id']
     else:
-        await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, "No export id")
+        await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name,
+                                            f"No export id, resp={response.text}")
+        return None
 
     # print(export_id)
     wait_time = 30

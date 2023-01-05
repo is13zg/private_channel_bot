@@ -57,20 +57,28 @@ async def ismember(message: Message) -> None:
 
 async def update_mails_from_gk_task():
     if init_data.update_from_gk:
-        mails_update()
+        if init_data.time_counter == init_data.update_from_gk_time:
+            init_data.time_counter = 0
+            await mails_update()
+        else:
+            init_data.time_counter += 1
 
 
 @router.message(Command(commands=["update_mails_gk"]), myfilters.IsAdmin())
 async def mails_update(message: Message = None) -> None:
     try:
-        user_emails = await conections.get_users(config.rm_club_member_list_gk_group_id)
-        user_emails = list(map(lambda x: x.lower(), user_emails))
 
         # выбираем в какой чат будем отправлять инфу
         if message is None:
             chat_id = config.Support_chat_id
         else:
             chat_id = message.chat.id
+
+        user_emails = await conections.get_users(config.rm_club_member_list_gk_group_id)
+        if user_emails == None:
+            await bot.send_message(chat_id, f"Can't get update from GK")
+            return
+        user_emails = list(map(lambda x: x.lower(), user_emails))
 
         # посчитаем сколько удалиься из списка разрешенных
         del_from_allow_list_count = len(set(init_data.Email_user_list).difference(set(user_emails)))
@@ -466,6 +474,36 @@ async def set_update_from_gk(message: Message) -> None:
         await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
 
 
+@router.message(Command(commands=["set_update_from_gk_time"]), myfilters.IsAdmin())
+async def set_update_from_gk(message: Message) -> None:
+    try:
+        if len(message.text.split()) > 1:
+            time_min = message.text.split()[1].lower()
+            if time_min.isdigit():
+                time_min = int(time_min)
+            else:
+                await message.answer("time must be int")
+                return
+
+        else:
+            await message.answer("WHERE is time ?")
+            return
+
+        if time_min < 5:
+            init_data.update_from_gk_time = 5
+            await message.answer("Set update_from_gk_time 5 min")
+        elif time_min > 720:
+            init_data.update_from_gk_time = 720
+            await message.answer("Set update_from_gk_time 720 min")
+        else:
+            init_data.update_from_gk_time = time_min
+            await message.answer(f"Set update_from_gk_time {time_min} min")
+
+        return
+    except Exception as e:
+        await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
+
+
 @router.message(Command(commands=["set_channel"]), myfilters.IsOwner())
 async def command_set_channel_handler(message: Message) -> None:
     try:
@@ -504,7 +542,8 @@ async def command_state(message: Message) -> None:
             t1 = "Rum2.0"
 
         txt = f"Channel_id={t1}\nCheck_emails={init_data.Chek_email_before_join}\n" \
-              f"Min_mid={init_data.MIN_mode}\nAuto_upd_from_gk={init_data.update_from_gk}"
+              f"Min_mid={init_data.MIN_mode}\nAuto_upd_from_gk={init_data.update_from_gk}\n" \
+              f"upd_time_from_gk = {init_data.update_from_gk_time}"
         await message.answer(txt)
         return
     except Exception as e:
@@ -566,12 +605,14 @@ async def command_helpaa(msg: Message):
 async def command_helpss(msg: Message):
     try:
         txt = "/set_channel [test, rum, rum2] - выбор канала, для теста или использования\n" \
+              "/set_update_from_gk_time [5 - 720 min] - как часто обновляется\n" \
               "/set_update_from_gk [on, off] - вкл/выкл автообновления пользователей из ГК\n" \
               "/state - состояние переменных\n" \
               "/check_emails [on, off] - выбор проверять ли емайл для доступа к каналу\n" \
               "/delete_from_old_rum_club [token] удалить пользователей из старого канала РУМКЛУБА\n" \
               "/bd_mails_lower - приведет все емайлы в бд и спмсках нижнему регистру\n" \
               "/req - [group_id] запрос к ГК апи\n"
+
         await msg.answer(txt, parse_mode="HTML")
         return
     except Exception as e:

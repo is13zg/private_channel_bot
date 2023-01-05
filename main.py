@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 async def main() -> None:
     scheduler = AsyncIOScheduler()
-    scheduler.add_job(admin.update_mails_from_gk_task, trigger="interval", seconds=600)
+    scheduler.add_job(admin.update_mails_from_gk_task, trigger="interval", seconds=60)
     scheduler.start()
 
     dp.include_router(admin.router)
