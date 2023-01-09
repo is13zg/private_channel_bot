@@ -1,6 +1,4 @@
 import requests
-import time
-from datetime import datetime
 import asyncio
 import create_bot
 import config
@@ -15,7 +13,7 @@ def get_emails_from_user_list(users):
     return emails
 
 
-async def get_users(group_id: int) -> list:
+async def get_users(group_id: int):
     url = f"https://ahmadullin.getcourse.ru/pl/api/account/groups/{group_id}/users"
     params = {"key": config.gk_key, }
     response = requests.get(url, params=params)

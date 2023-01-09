@@ -30,3 +30,6 @@ Emails_to_delete_from_channel = list(set(db.get_emails()).difference(Email_user_
 
 # список в котором хранится список полученных пользователей из ГК
 # Emails_new_user_list = []
+
+# список для рассылки полученных пользователей из ГК
+Emails_to_spam_list = []

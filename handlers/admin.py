@@ -44,20 +44,20 @@ async def ismember(message: Message) -> None:
         return
     else:
         if msg_ls[1].isdigit():
-            id = int(msg_ls[1])
+            user_id = int(msg_ls[1])
         elif init_data.db.user_exists(msg_ls[1]):
-            id = int(init_data.db.get_user_tlg_id())
+            user_id = int(init_data.db.get_user_tlg_id())
         else:
             await message.answer("need id or mail")
             return
 
-        chat_member = await bot.get_chat_member(config.Chanel_Id, id)
+        chat_member = await bot.get_chat_member(config.Chanel_Id, user_id)
         await message.answer(text=chat_member.status)
 
 
 async def update_mails_from_gk_task():
     if init_data.update_from_gk:
-        if init_data.time_counter == init_data.update_from_gk_time:
+        if init_data.time_counter >= init_data.update_from_gk_time:
             init_data.time_counter = 0
             await mails_update()
         else:
@@ -109,7 +109,7 @@ async def mails_update(message: Message = None) -> None:
 @router.message(Command(commands=["delete_gk"]), myfilters.IsAdmin())
 async def delete_gk(message: Message) -> None:
     try:
-
+        # проверка токена
         msg_ls = message.text.split()
         if len(msg_ls) == 1:
             msg_ls.append("")
@@ -122,6 +122,7 @@ async def delete_gk(message: Message) -> None:
             await message.answer("list to delete is empty")
             return
 
+        # проверяем есть ли кого удалять
         user_emails = init_data.Emails_to_delete_from_channel
         if len(user_emails) == 0:
             await message.answer("list to delete from channel is empty")
@@ -129,6 +130,7 @@ async def delete_gk(message: Message) -> None:
             counter = 0
             for user_email in user_emails:
                 try:
+                    # удаляем обычного полдьзователя по емайлу
                     await message.answer(f"To delete left {len(user_emails) - counter}\ndeleting user {user_email} ...")
                     if init_data.db.user_exists(user_email):
                         user_tlg_id = init_data.db.get_user_tlg_id(user_email)
@@ -144,6 +146,23 @@ async def delete_gk(message: Message) -> None:
                     else:
                         await message.answer(f"User {user_email} NOT in BD. Can't delete it from channel.")
                     await asyncio.sleep(1)
+
+                    # проверяем пользователя с двойкой
+                    if init_data.db.user_exists(user_email + "2"):
+                        await message.answer(f" also delete user {user_email}2 ")
+                        user_tlg_id = init_data.db.get_user_tlg_id(user_email + "2")
+                        user_kicked = await bot.kick_chat_member(config.Chanel_Id, user_tlg_id)
+                        if user_kicked:
+                            init_data.db.del_user_from_db(user_tlg_id)
+                            await message.answer(f"User {user_email}2 delete from channel.")
+                            await bot.send_message(chat_id=user_tlg_id, text=init_data.messages_to_user["bye"])
+                        else:
+                            chat_member = await bot.get_chat_member(config.Chanel_Id, user_tlg_id)
+                            await message.answer(
+                                f"User {user_email}2 with id {user_tlg_id} in BD, but Can't delete it from channel. His status is {chat_member.status}")
+
+                        await asyncio.sleep(1)
+
                     counter += 1
                 except Exception as e:
                     await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
@@ -191,44 +210,49 @@ async def delete_from_old_rum_club(message: Message) -> None:
 
 
 @router.message(Command(commands=["reserv"]), myfilters.IsAdmin())
-async def make_reserv_data(msg: Message):
+async def make_reserv_data(msg: Message = None):
     try:
+        if msg == None:
+            msg_chat_id = config.Support_chat_id
+        else:
+            msg_chat_id = msg.chat.id
+
         try:
-            await bot.send_document(msg.chat.id, FSInputFile(config.BD_name))
+            await bot.send_document(msg_chat_id, FSInputFile(config.BD_name))
         except TelegramBadRequest as e:
-            await bot.send_message(msg.chat.id, f"can't send {config.BD_name} because {e}")
+            await bot.send_message(msg_chat_id, f"can't send {config.BD_name} because {e}")
         try:
-            await bot.send_document(msg.chat.id, FSInputFile(config.Emails_file_name))
+            await bot.send_document(msg_chat_id, FSInputFile(config.Emails_file_name))
         except TelegramBadRequest as e:
-            await bot.send_message(msg.chat.id, f"can't send {config.Emails_file_name} because {e}")
+            await bot.send_message(msg_chat_id, f"can't send {config.Emails_file_name} because {e}")
         try:
-            await bot.send_document(msg.chat.id, FSInputFile(config.Emails_NZ_file_name))
+            await bot.send_document(msg_chat_id, FSInputFile(config.Emails_NZ_file_name))
         except TelegramBadRequest as e:
-            await bot.send_message(msg.chat.id, f"can't send {config.Emails_NZ_file_name} because {e}")
+            await bot.send_message(msg_chat_id, f"can't send {config.Emails_NZ_file_name} because {e}")
         try:
-            await bot.send_document(msg.chat.id, FSInputFile(config.Messages_to_user_file_name))
+            await bot.send_document(msg_chat_id, FSInputFile(config.Messages_to_user_file_name))
         except TelegramBadRequest as e:
-            await bot.send_message(msg.chat.id, f"can't send {config.Messages_to_user_file_name} because {e}")
+            await bot.send_message(msg_chat_id, f"can't send {config.Messages_to_user_file_name} because {e}")
         try:
-            await bot.send_document(msg.chat.id, FSInputFile(config.Interaction_file_name))
+            await bot.send_document(msg_chat_id, FSInputFile(config.Interaction_file_name))
         except TelegramBadRequest as e:
-            await bot.send_message(msg.chat.id, f"can't send {config.Interaction_file_name} because {e}")
+            await bot.send_message(msg_chat_id, f"can't send {config.Interaction_file_name} because {e}")
         try:
-            await bot.send_document(msg.chat.id, FSInputFile(config.Answers_file_name))
+            await bot.send_document(msg_chat_id, FSInputFile(config.Answers_file_name))
         except TelegramBadRequest as e:
-            await bot.send_message(msg.chat.id, f"can't send {config.Answers_file_name} because {e}")
+            await bot.send_message(msg_chat_id, f"can't send {config.Answers_file_name} because {e}")
         try:
-            await bot.send_document(msg.chat.id, FSInputFile(config.Interaction_file_nameM))
+            await bot.send_document(msg_chat_id, FSInputFile(config.Interaction_file_nameM))
         except TelegramBadRequest as e:
-            await bot.send_message(msg.chat.id, f"can't send {config.Interaction_file_nameM} because {e}")
+            await bot.send_message(msg_chat_id, f"can't send {config.Interaction_file_nameM} because {e}")
         try:
-            await bot.send_document(msg.chat.id, FSInputFile(config.Answers_file_nameM))
+            await bot.send_document(msg_chat_id, FSInputFile(config.Answers_file_nameM))
         except TelegramBadRequest as e:
-            await bot.send_message(msg.chat.id, f"can't send {config.Answers_file_nameM} because {e}")
+            await bot.send_message(msg_chat_id, f"can't send {config.Answers_file_nameM} because {e}")
         try:
-            await bot.send_document(msg.chat.id, FSInputFile(config.Emails_to_delete_file_name))
+            await bot.send_document(msg_chat_id, FSInputFile(config.Emails_to_delete_file_name))
         except TelegramBadRequest as e:
-            await bot.send_message(msg.chat.id, f"Can't send {config.Emails_to_delete_file_name} because {e}")
+            await bot.send_message(msg_chat_id, f"Can't send {config.Emails_to_delete_file_name} because {e}")
         return
     except Exception as e:
         await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
@@ -561,6 +585,17 @@ async def bd_mails_lower(message: Message) -> None:
         await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
 
 
+
+@router.message(Command(commands=["set_grid_spam"]), myfilters.IsOwner())
+async def set_grid_spam(message: Message) -> None:
+    try:
+        msg_ls = message.text.split()
+        if len(msg_ls) < 1:
+            await message.answer("need GC group id")
+            return
+    except Exception as e:
+        await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
+
 @router.message(Command(commands=["helpaa"]), myfilters.IsAdmin())
 async def command_helpaa(msg: Message):
     try:
@@ -593,7 +628,12 @@ async def command_helpaa(msg: Message):
               "   del - оба списка для удаления  \n" \
               "   [ f - список файлом, msg - список сообщением, auto* по умолч, зависит от длинны списка, ] \n" \
               "/update_mails_gk  обновляет список разрешенных майлов из ГК формирует список на удаления из канала \n" \
-              "/delete_gk TOKEN  удалит del_chnl из канала \n\n" \
+              "/delete_gk TOKEN  удалит del_chnl из канала \n" \
+              "/spam TOKEN  MSG_KEY GR_ID рассылка по группе с GR_ID из ГК\n" \
+              "   сообщение из файла messages_to_user \n" \
+              "   без токена отобразит группу и сообщение \n" \
+              "   без GR_ID отправит по заданной группе \n" \
+              "/set_grid_spam  GR_ID установит группу для рассылки \n" \
               "/helpss - список специфических команд\n"
         await msg.answer(txt, parse_mode="HTML")
         return

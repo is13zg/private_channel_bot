@@ -42,9 +42,15 @@ def get_universal_callback_data(item: dict) -> str:
         create_bot.print_error_message(__name__, inspect.currentframe().f_code.co_name, e)
 
 
-def form_tlg_menu_items(menu_from_json: list = [], msgs_ids: list = []) -> InlineKeyboardMarkup:
+def form_tlg_menu_items(menu_from_json: list = None, msgs_ids: list = None) -> InlineKeyboardMarkup:
     try:
         builder = InlineKeyboardBuilder()
+        if menu_from_json is None:
+            menu_from_json = []
+
+        if msgs_ids is None:
+            msgs_ids = []
+
         for item in menu_from_json:
             builder.row(InlineKeyboardButton(text=item['text'], callback_data=get_universal_callback_data(item)))
         if not init_data.MIN_mode:
@@ -120,8 +126,9 @@ async def command_join_handler(message: Message) -> None:
                     user_email = message.text.split()[1]
                     # приводим емайл пользователя к нижнему регистру и дальше уже раюотаем с ним
                     user_email = user_email.lower()
-                    # проверяем есть ли почта пользователя в разрешенных
-                    if user_email in init_data.Email_user_list:
+                    # проверяем есть ли почта пользователя в разрешенных c учетом почт с 2
+                    if user_email in init_data.Email_user_list or (
+                            user_email[:-1] in init_data.Email_user_list and user_email[-1] == "2"):
                         # проверяем нет ли уже записи с такой почтой в базе
                         if not init_data.db.user_exists(user_email):
                             # даем ссылку
@@ -147,7 +154,7 @@ async def command_join_handler(message: Message) -> None:
                     else:
                         # почты пользователя нет в разрешенныых предлогаем ввести нужную почту
                         await message.answer(
-                            f"Что то пошло не так..\nИспользуйте email по которому зарегестрированы в GetCourse \nhttps://lesson.shamilahmadullin.com/")
+                            f"Что то пошло не так..\nИспользуйте email, по которому зарегистрированы в GetCourse \nhttps://lesson.shamilahmadullin.com/")
                         return
                 else:
                     # предлагаем пользователю ввести почту

@@ -12,6 +12,16 @@ from aiogram.types import FSInputFile
 import init_data
 
 
+async def spam(users: list, msg: str):
+    try:
+        for user in users:
+            res = await bot.send_message(chat_id=user, text=msg)
+            await bot.send_message(chat_id=config.Support_chat_id, text=str(res))
+            await asyncio.sleep(0.13)
+    except Exception as e:
+        create_bot.print_error_message(__name__, inspect.currentframe().f_code.co_name, e)
+
+
 async def big_send(chat_id, content, sep="\n", tag=""):
     await bot.send_message(chat_id, f"!!! {tag} = len {len(content)} !!!", disable_notification=True)
     reply = sep.join(content)

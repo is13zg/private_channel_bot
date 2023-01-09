@@ -20,12 +20,21 @@ class Database:
         except Exception as e:
             create_bot.print_error_message(__name__, inspect.currentframe().f_code.co_name, e)
 
-    def add_reg_user_to_db(self, id):
+    def add_user_to_del(self, tlg_user_id, user_getcourse_email):
+        try:
+            with self.connection:
+                return self.cursor.execute(
+                    "INSERT INTO `users_in_channel_del` (`tlg_user_id`, `user_getcourse_email`) VALUES (?,?)",
+                    (tlg_user_id, user_getcourse_email,))
+        except Exception as e:
+            create_bot.print_error_message(__name__, inspect.currentframe().f_code.co_name, e)
+
+    def add_reg_user_to_db(self, user_id):
         try:
             with self.connection:
                 return self.cursor.execute(
                     "INSERT INTO `users` (`id`) VALUES (?)",
-                    (id,))
+                    (user_id,))
         except Exception as e:
             create_bot.print_error_message(__name__, inspect.currentframe().f_code.co_name, e)
 
@@ -39,6 +48,16 @@ class Database:
         except Exception as e:
             create_bot.print_error_message(__name__, inspect.currentframe().f_code.co_name, e)
 
+    def get_user_email(self, user_tlg_id):
+        try:
+            with self.connection:
+                res = self.cursor.execute(
+                    "SELECT `user_getcourse_email` FROM `users_in_channel` WHERE `tlg_user_id` = ?",
+                    (user_tlg_id,)).fetchmany(1)
+                return str(res[0][0])
+        except Exception as e:
+            create_bot.print_error_message(__name__, inspect.currentframe().f_code.co_name, e)
+
     def user_exists(self, user_getcourse_email):
         try:
             with self.connection:
@@ -49,11 +68,11 @@ class Database:
         except Exception as e:
             create_bot.print_error_message(__name__, inspect.currentframe().f_code.co_name, e)
 
-    def reg_user_exists(self, id):
+    def reg_user_exists(self, user_id):
         try:
             with self.connection:
                 res = self.cursor.execute("SELECT * FROM `users` WHERE `id` = ?",
-                                          (id,)).fetchmany(1)
+                                          (user_id,)).fetchmany(1)
 
                 return bool(len(res))
         except Exception as e:
@@ -62,7 +81,33 @@ class Database:
     def del_user_from_db(self, tlg_user_id):
         try:
             with self.connection:
+
+                # получение email по id, чтобы потом сохранить пользователя в таблице удаленных
+                email = self.cursor.execute(
+                    "SELECT `user_getcourse_email` FROM `users_in_channel` WHERE `tlg_user_id` = ?",
+                    (tlg_user_id,)).fetchmany(1)[0][0]
+                self.cursor.execute(
+                    "INSERT INTO `users_in_channel_del` (`tlg_user_id`, `user_getcourse_email`) VALUES (?,?)",
+                    (tlg_user_id, email,))
+
+                # проходит само удаление пользователя
                 return self.cursor.execute("DELETE FROM `users_in_channel` WHERE `tlg_user_id` = ?", (tlg_user_id,))
+        except Exception as e:
+            create_bot.print_error_message(__name__, inspect.currentframe().f_code.co_name, e)
+
+    def del_user_from_db_email(self, email):
+        try:
+            with self.connection:
+                # получение id по  email, чтобы потом сохранить пользователя в таблице удаленных
+                tlg_user_id = self.cursor.execute(
+                    "SELECT `tlg_user_id` FROM `users_in_channel` WHERE `user_getcourse_email` = ?",
+                    (email,)).fetchmany(1)[0][0]
+                self.cursor.execute(
+                    "INSERT INTO `users_in_channel_del` (`tlg_user_id`, `user_getcourse_email`) VALUES (?,?)",
+                    (tlg_user_id, email,))
+
+                # проходит само удаление пользователя
+                return self.cursor.execute("DELETE FROM `users_in_channel` WHERE `user_getcourse_email` = ?", (email,))
         except Exception as e:
             create_bot.print_error_message(__name__, inspect.currentframe().f_code.co_name, e)
 
