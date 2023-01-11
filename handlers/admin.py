@@ -75,7 +75,7 @@ async def mails_update(message: Message = None) -> None:
             chat_id = message.chat.id
 
         user_emails = await conections.get_users(config.rm_club_member_list_gk_group_id)
-        if user_emails == None:
+        if user_emails is None:
             await bot.send_message(chat_id, f"Can't get update from GK")
             return
         user_emails = list(map(lambda x: x.lower(), user_emails))
@@ -212,7 +212,7 @@ async def delete_from_old_rum_club(message: Message) -> None:
 @router.message(Command(commands=["reserv"]), myfilters.IsAdmin())
 async def make_reserv_data(msg: Message = None):
     try:
-        if msg == None:
+        if msg is None:
             msg_chat_id = config.Support_chat_id
         else:
             msg_chat_id = msg.chat.id
@@ -424,6 +424,10 @@ async def get_mails_handler(msg: Message):
                                            send_name="del_mails_ls".upper())
             await utils.make_response_data(msg.chat.id, init_data.Emails_to_delete_from_channel, frmt=frmt,
                                            send_name="del_chnl_mails".upper())
+        elif email_list_tag == "spam":
+            await utils.make_response_data(msg.chat.id, init_data.Emails_to_delete_from_allow_list, frmt=frmt,
+                                           send_name=send_ls_name)
+
         else:
             await msg.answer("No response mail list")
 
@@ -585,7 +589,6 @@ async def bd_mails_lower(message: Message) -> None:
         await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
 
 
-
 @router.message(Command(commands=["set_grid_spam"]), myfilters.IsOwner())
 async def set_grid_spam(message: Message) -> None:
     try:
@@ -593,8 +596,88 @@ async def set_grid_spam(message: Message) -> None:
         if len(msg_ls) < 1:
             await message.answer("need GC group id")
             return
+        elif not msg_ls[1].isdigit():
+            await message.answer("GC group id must be digit")
+            return
+        else:
+            user_emails = await conections.get_users(int(msg_ls[1]))
+            if user_emails is None:
+                await bot.send_message(message.chat.id, f"Can't get spam mails from GK")
+                return
+            else:
+                init_data.Emails_to_spam_list = list(map(lambda x: x.lower(), user_emails))
+                await utils.make_response_data(message.chat.id, init_data.Emails_to_spam_list, send_name="spam_mails")
+
+
     except Exception as e:
         await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
+
+
+@router.message(Command(commands=["spam"]), myfilters.IsOwner())
+async def send_spam(message: Message) -> None:
+    try:
+        msg_ls = message.text.split()
+        if len(msg_ls) == 2:
+            await message.answer("at least need MSG_KEY")
+            return
+        elif len(msg_ls) == 3:
+            #  случая если всего 2 параметра и дали токен
+            if msg_ls[1] == init_data.Random_str and msg_ls[2] in init_data.messages_to_user:
+                spam_users = utils.form_user_to_spam()
+                if len(spam_users):
+                    res = await utils.spam(spam_users, init_data.messages_to_user[msg_ls[2]])
+                    await message.answer(f"Spam was send.")
+                    await utils.make_response_data(message.chat.id, res.items(), send_name="spam_res")
+                else:
+                    await message.answer(f"No users to send spam in bot db")
+                    init_data.Random_str = utils.gen_rnd_str()
+            #  случай если всего 2 параметра и НЕТ токена
+            elif msg_ls[1] != init_data.Random_str:
+                if msg_ls[2].isdigit() and msg_ls[1] in init_data.messages_to_user:
+                    msg_ls[2], msg_ls[1] = msg_ls[1], msg_ls[2]
+                if msg_ls[1].isdigit() and msg_ls[2] in init_data.messages_to_user:
+                    user_emails = await conections.get_users(int(msg_ls[1]))
+                    init_data.Emails_to_spam_list = list(map(lambda x: x.lower(), user_emails))
+                    spam_users = utils.form_user_to_spam()
+                    await utils.make_response_data(message.chat.id, spam_users, send_name="spam_mails")
+                    await message.answer(f"message to user:\n {init_data.messages_to_user[msg_ls[2]]}")
+                    await message.answer(
+                        f"to send spam write:\n <pre>/spam {init_data.Random_str} MSG_KEY [GR_ID - ] </pre>")
+                else:
+                    await message.answer(f"some wrong in {msg_ls[1]} {msg_ls[2]}...")
+        elif len(msg_ls) == 4:
+            if msg_ls[1] == init_data.Random_str:
+                if msg_ls[3].isdigit() and msg_ls[3] in init_data.messages_to_user:
+                    msg_ls[2], msg_ls[3] = msg_ls[3], msg_ls[2]
+                if msg_ls[2].isdigit() and msg_ls[3] in init_data.messages_to_user:
+                    user_emails = await conections.get_users(int(msg_ls[1]))
+                    init_data.Emails_to_spam_list = list(map(lambda x: x.lower(), user_emails))
+                    spam_users = utils.form_user_to_spam()
+                    if len(spam_users):
+                        res = await utils.spam(spam_users, init_data.messages_to_user[msg_ls[2]])
+                        await message.answer(f"Spam was send.")
+                        await utils.make_response_data(message.chat.id, res.items(), send_name="spam_res")
+                    else:
+                        await message.answer(f"No users to send spam in bot db")
+                        init_data.Random_str = utils.gen_rnd_str()
+            else:
+                await message.answer("token no correct")
+                return
+
+        else:
+            user_emails = await conections.get_users(int(msg_ls[1]))
+            if user_emails is None:
+                await bot.send_message(message.chat.id, f"Can't get spam mails from GK")
+                return
+            else:
+                init_data.Emails_to_spam_list = list(map(lambda x: x.lower(), user_emails))
+                await utils.make_response_data(message.chat.id, init_data.Emails_to_spam_list,
+                                               send_name="spam_mails".upper())
+
+
+    except Exception as e:
+        await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
+
 
 @router.message(Command(commands=["helpaa"]), myfilters.IsAdmin())
 async def command_helpaa(msg: Message):
@@ -618,7 +701,7 @@ async def command_helpaa(msg: Message):
               "   для удаления из канала \n" \
               "   для удаления из списка разрешенных \n" \
               "/set_mode [norm, min] - отключение помощника\n" \
-              "/get_mails [all*, reg, free, nz,  del_mails_ls, del_chnl, del] [f, msg, auto*] \n" \
+              "/get_mails [all*, reg, free, nz,  del_mails_ls, del_chnl, del, spam] [f, msg, auto*] \n" \
               "    all* - по умолч, список всех емайлов кому доступно вступление \n" \
               "   reg - список емайлов по которым УЖЕ вступили \n" \
               "   free - список емайлов по которым еще НЕ вступили \n" \
@@ -626,6 +709,7 @@ async def command_helpaa(msg: Message):
               "   del_mails_ls - список емайлов из ГК для удаления из списка разрешенных \n" \
               "   del_chnl - список емайлов из ГК для удаления из канала  \n" \
               "   del - оба списка для удаления  \n" \
+              "   spam - список по которым пойдет рассылка  \n" \
               "   [ f - список файлом, msg - список сообщением, auto* по умолч, зависит от длинны списка, ] \n" \
               "/update_mails_gk  обновляет список разрешенных майлов из ГК формирует список на удаления из канала \n" \
               "/delete_gk TOKEN  удалит del_chnl из канала \n" \

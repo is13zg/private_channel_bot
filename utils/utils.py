@@ -12,12 +12,14 @@ from aiogram.types import FSInputFile
 import init_data
 
 
-async def spam(users: list, msg: str):
+async def spam(users: dict, msg: str):
     try:
-        for user in users:
-            res = await bot.send_message(chat_id=user, text=msg)
-            await bot.send_message(chat_id=config.Support_chat_id, text=str(res))
+        res = dict()
+        for email, tgid in users:
+            res = await bot.send_message(chat_id=tgid, text=msg)
             await asyncio.sleep(0.13)
+            res[email] = res
+        return res
     except Exception as e:
         create_bot.print_error_message(__name__, inspect.currentframe().f_code.co_name, e)
 
@@ -80,6 +82,20 @@ def new_emails_to_file(mails: list, file_name: str):
             # итерация по строкам
             txtf.write("\n".join(list(map(lambda x: x.lower(), mails))))
             return
+    except Exception as e:
+        create_bot.print_error_message(__name__, inspect.currentframe().f_code.co_name, e)
+
+
+def form_user_to_spam():
+    try:
+        tlg_ids_ls = dict()
+        if len(init_data.Emails_to_spam_list):
+            for email in init_data.Emails_to_spam_list:
+                if init_data.db.user_exists(email):
+                    tlg_ids_ls[email] = init_data.db.get_user_tlg_id(email)
+                    if init_data.db.user_exists(email + "2"):
+                        tlg_ids_ls[email + "2"] = init_data.db.get_user_tlg_id(email + "2")
+        return tlg_ids_ls
     except Exception as e:
         create_bot.print_error_message(__name__, inspect.currentframe().f_code.co_name, e)
 
