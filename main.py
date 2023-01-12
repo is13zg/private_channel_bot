@@ -14,7 +14,7 @@ async def main() -> None:
 
     dt = datetime.now().replace(hour=12, minute=00, second=00)
     scheduler.add_job(admin.make_reserv_data, trigger="cron", hour=dt.hour, minute=dt.minute, start_date=datetime.now())
-
+    scheduler.add_job(admin.command_stat, trigger="cron", hour=dt.hour, minute=dt.minute, start_date=datetime.now())
     scheduler.start()
 
     dp.include_router(admin.router)

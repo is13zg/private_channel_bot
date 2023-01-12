@@ -39,7 +39,7 @@ async def req_exmp(message: Message) -> None:
 @router.message(Command(commands=["ismember"]), myfilters.IsOwner())
 async def ismember(message: Message) -> None:
     msg_ls = message.text.split()
-    if len(msg_ls) < 1:
+    if len(msg_ls) < 2:
         await message.answer("need id or mail")
         return
     else:
@@ -119,13 +119,13 @@ async def delete_gk(message: Message) -> None:
             return
 
         if len(init_data.Emails_to_delete_from_allow_list) == 0:
-            await message.answer("list to delete is empty")
-            return
+            await message.answer("list to delete from allow list is empty")
 
         # проверяем есть ли кого удалять
         user_emails = init_data.Emails_to_delete_from_channel
         if len(user_emails) == 0:
             await message.answer("list to delete from channel is empty")
+            return
         else:
             counter = 0
             for user_email in user_emails:
@@ -364,16 +364,21 @@ async def get_files(message: Message):
 
 
 @router.message(Command(commands=["stat"]), myfilters.IsAdmin())
-async def command_stat(msg: Message):
+async def command_stat(msg: Message = None):
     try:
+        if msg is None:
+            msg_chat_id = config.Support_chat_id
+        else:
+            msg_chat_id = msg.chat.id
+
         all_users = init_data.db.count_reg_user()[0][0]
         emails = set([x[0] for x in init_data.db.get_emails()])
         free_emails = len(set(init_data.Email_user_list).difference(emails))
-        await msg.answer(f"how_much_users_used_bot: {all_users}\n"
-                         f"used_emails: {len(emails)}\n"
-                         f"free_emails: {free_emails}\n"
-                         f"del_frm_chnl: {len(init_data.Emails_to_delete_from_channel)}\n"
-                         f"del_frm_allw_ls: {len(init_data.Emails_to_delete_from_allow_list)}")
+        await bot.send_message(msg_chat_id, f"how_much_users_used_bot: {all_users}\n"
+                                            f"used_emails: {len(emails)}\n"
+                                            f"free_emails: {free_emails}\n"
+                                            f"del_frm_chnl: {len(init_data.Emails_to_delete_from_channel)}\n"
+                                            f"del_frm_allw_ls: {len(init_data.Emails_to_delete_from_allow_list)}")
         return
     except Exception as e:
         await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
@@ -593,7 +598,7 @@ async def bd_mails_lower(message: Message) -> None:
 async def set_grid_spam(message: Message) -> None:
     try:
         msg_ls = message.text.split()
-        if len(msg_ls) < 1:
+        if len(msg_ls) < 2:
             await message.answer("need GC group id")
             return
         elif not msg_ls[1].isdigit():
@@ -617,9 +622,20 @@ async def set_grid_spam(message: Message) -> None:
 async def send_spam(message: Message) -> None:
     try:
         msg_ls = message.text.split()
-        if len(msg_ls) == 2:
+        if len(msg_ls) < 2:
             await message.answer("at least need MSG_KEY")
             return
+        elif len(msg_ls) == 2:
+            #  случая если всего 1 параметр
+            if msg_ls[1] in init_data.messages_to_user:
+                spam_users = utils.form_user_to_spam()
+                await utils.make_response_data(message.chat.id, spam_users.items(), send_name="spam_mails")
+                await message.answer(f"message to user:\n {init_data.messages_to_user[msg_ls[1]]}")
+                await message.answer(
+                    f"to send spam write:\n <pre>/spam {init_data.Random_str} MSG_KEY [GR_ID - ] </pre>")
+            else:
+                await message.answer("need MSG_KEY")
+                return
         elif len(msg_ls) == 3:
             #  случая если всего 2 параметра и дали токен
             if msg_ls[1] == init_data.Random_str and msg_ls[2] in init_data.messages_to_user:
@@ -639,7 +655,7 @@ async def send_spam(message: Message) -> None:
                     user_emails = await conections.get_users(int(msg_ls[1]))
                     init_data.Emails_to_spam_list = list(map(lambda x: x.lower(), user_emails))
                     spam_users = utils.form_user_to_spam()
-                    await utils.make_response_data(message.chat.id, spam_users, send_name="spam_mails")
+                    await utils.make_response_data(message.chat.id, spam_users.items(), send_name="spam_mails")
                     await message.answer(f"message to user:\n {init_data.messages_to_user[msg_ls[2]]}")
                     await message.answer(
                         f"to send spam write:\n <pre>/spam {init_data.Random_str} MSG_KEY [GR_ID - ] </pre>")
