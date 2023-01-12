@@ -14,6 +14,10 @@ def get_emails_from_user_list(users):
 
 
 async def get_users(group_id: int):
+    if type(group_id) != int:
+        await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, "group_id no int")
+        return
+
     url = f"https://ahmadullin.getcourse.ru/pl/api/account/groups/{group_id}/users"
     params = {"key": config.gk_key, }
     response = requests.get(url, params=params)

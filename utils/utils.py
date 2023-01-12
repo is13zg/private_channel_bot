@@ -10,18 +10,24 @@ import config
 import asyncio
 from aiogram.types import FSInputFile
 import init_data
+from aiogram.exceptions import TelegramForbiddenError
 
 
 async def spam(users: dict, msg: str):
     try:
-        res = dict()
-        for email, tgid in users:
-            res = await bot.send_message(chat_id=tgid, text=msg)
+        results = list()
+        for email, tgid in users.items():
+            try:
+                t = await bot.send_message(chat_id=tgid, text=msg)
+                if t:
+                    ans = "Ok"
+            except TelegramForbiddenError:
+                ans = "Bad. block by user"
+            results.append(f"{email}_{ans}")
             await asyncio.sleep(0.13)
-            res[email] = res
-        return res
+        return results
     except Exception as e:
-        create_bot.print_error_message(__name__, inspect.currentframe().f_code.co_name, e)
+        await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
 
 
 async def big_send(chat_id, content, sep="\n", tag=""):
@@ -137,6 +143,7 @@ def update_mails_list():
     # добавляем в текущий список НЗ емайлы
     init_data.Email_user_list.extend(init_data.Emails_NZ_list)
     # смотрим кого надо удалить из канала
+    # емайл с 2 в концк будет проверчятся и удалятся в сам процесс удаления
     init_data.Emails_to_delete_from_channel = list(
         set([x[0] for x in init_data.db.get_emails()]).difference(init_data.Email_user_list))
 
@@ -162,4 +169,4 @@ async def make_response_data(chat_id: int, data: list, frmt: str = "auto", send_
             await big_send(chat_id, data, tag=send_name)
 
     except Exception as e:
-        create_bot.print_error_message(__name__, inspect.currentframe().f_code.co_name, e)
+        await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)

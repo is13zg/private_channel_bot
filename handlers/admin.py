@@ -318,13 +318,14 @@ async def get_files(message: Message):
         elif real_file_name == config.Emails_NZ_file_name:
             # загрузили новый файл с НЗ почтами
             # удаляем из текущего списка разрешенных, список старых НЗ почт
-            init_data.Emails_user_list = list(set(init_data.Email_user_list).difference(init_data.Emails_NZ_list))
+            init_data.Email_user_list = list(set(init_data.Email_user_list).difference(set(init_data.Emails_NZ_list)))
             # обновялем текущий список НЗ емайлов
             init_data.Emails_NZ_list = utils.get_emails_from_file(config.Emails_NZ_file_name)
             # # сохраняем в файл НЗ емайлы
             # utils.new_emails_to_file(init_data.Emails_NZ_list, config.Emails_NZ_file_name)
 
             utils.update_mails_list()
+
             # добавляем в список разрешенных НЗ емайлы
             # init_data.Email_user_list.extend(init_data.Emails_NZ_list)
             # # смотрим кого надо удалить из канала
@@ -388,7 +389,7 @@ async def command_stat(msg: Message = None):
 async def get_mails_handler(msg: Message):
     try:
         frmt_set = {"f", "msg", "auto"}
-        email_list_tag_set = {"all", "reg", "free", "nz", "del_chnl", "del_mails_ls", "newgk", "del"}
+        email_list_tag_set = {"all", "reg", "free", "nz", "del_chnl", "del_mails_ls", "newgk", "del", "spam"}
 
         frmt = "auto"
         email_list_tag = "all"
@@ -430,7 +431,7 @@ async def get_mails_handler(msg: Message):
             await utils.make_response_data(msg.chat.id, init_data.Emails_to_delete_from_channel, frmt=frmt,
                                            send_name="del_chnl_mails".upper())
         elif email_list_tag == "spam":
-            await utils.make_response_data(msg.chat.id, init_data.Emails_to_delete_from_allow_list, frmt=frmt,
+            await utils.make_response_data(msg.chat.id, init_data.Emails_to_spam_list, frmt=frmt,
                                            send_name=send_ls_name)
 
         else:
@@ -594,7 +595,7 @@ async def bd_mails_lower(message: Message) -> None:
         await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
 
 
-@router.message(Command(commands=["set_grid_spam"]), myfilters.IsOwner())
+@router.message(Command(commands=["set_grid_spam"]), myfilters.IsAdmin())
 async def set_grid_spam(message: Message) -> None:
     try:
         msg_ls = message.text.split()
@@ -618,35 +619,38 @@ async def set_grid_spam(message: Message) -> None:
         await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
 
 
-@router.message(Command(commands=["spam"]), myfilters.IsOwner())
+@router.message(Command(commands=["spam"]), myfilters.IsAdmin())
 async def send_spam(message: Message) -> None:
     try:
         msg_ls = message.text.split()
         if len(msg_ls) < 2:
-            await message.answer("at least need MSG_KEY")
+            await message.answer(f"at least need MSG_KEY, token: {init_data.Random_str}")
             return
         elif len(msg_ls) == 2:
             #  случая если всего 1 параметр
             if msg_ls[1] in init_data.messages_to_user:
                 spam_users = utils.form_user_to_spam()
-                await utils.make_response_data(message.chat.id, spam_users.items(), send_name="spam_mails")
+                await utils.make_response_data(message.chat.id, spam_users, send_name="spam_mails")
                 await message.answer(f"message to user:\n {init_data.messages_to_user[msg_ls[1]]}")
                 await message.answer(
                     f"to send spam write:\n <pre>/spam {init_data.Random_str} MSG_KEY [GR_ID - ] </pre>")
             else:
-                await message.answer("need MSG_KEY")
+                await message.answer(f"to preview, need MSG_KEY, token: {init_data.Random_str}")
                 return
         elif len(msg_ls) == 3:
             #  случая если всего 2 параметра и дали токен
-            if msg_ls[1] == init_data.Random_str and msg_ls[2] in init_data.messages_to_user:
-                spam_users = utils.form_user_to_spam()
-                if len(spam_users):
-                    res = await utils.spam(spam_users, init_data.messages_to_user[msg_ls[2]])
-                    await message.answer(f"Spam was send.")
-                    await utils.make_response_data(message.chat.id, res.items(), send_name="spam_res")
-                else:
-                    await message.answer(f"No users to send spam in bot db")
+            if msg_ls[1] == init_data.Random_str:
+                if msg_ls[2] in init_data.messages_to_user:
+                    spam_users = utils.form_user_to_spam()
+                    if len(spam_users):
+                        res = await utils.spam(spam_users, init_data.messages_to_user[msg_ls[2]])
+                        await utils.make_response_data(message.chat.id, res, send_name="spam_res")
+                        await message.answer(f"Spam was send.")
+                    else:
+                        await message.answer(f"No users to send spam in bot db")
                     init_data.Random_str = utils.gen_rnd_str()
+                else:
+                    await message.answer("no correct MSG_KEY")
             #  случай если всего 2 параметра и НЕТ токена
             elif msg_ls[1] != init_data.Random_str:
                 if msg_ls[2].isdigit() and msg_ls[1] in init_data.messages_to_user:
@@ -655,7 +659,7 @@ async def send_spam(message: Message) -> None:
                     user_emails = await conections.get_users(int(msg_ls[1]))
                     init_data.Emails_to_spam_list = list(map(lambda x: x.lower(), user_emails))
                     spam_users = utils.form_user_to_spam()
-                    await utils.make_response_data(message.chat.id, spam_users.items(), send_name="spam_mails")
+                    await utils.make_response_data(message.chat.id, spam_users, send_name="spam_mails")
                     await message.answer(f"message to user:\n {init_data.messages_to_user[msg_ls[2]]}")
                     await message.answer(
                         f"to send spam write:\n <pre>/spam {init_data.Random_str} MSG_KEY [GR_ID - ] </pre>")
@@ -663,33 +667,30 @@ async def send_spam(message: Message) -> None:
                     await message.answer(f"some wrong in {msg_ls[1]} {msg_ls[2]}...")
         elif len(msg_ls) == 4:
             if msg_ls[1] == init_data.Random_str:
-                if msg_ls[3].isdigit() and msg_ls[3] in init_data.messages_to_user:
+                if (msg_ls[3].isdigit()) and (msg_ls[2] in init_data.messages_to_user):
                     msg_ls[2], msg_ls[3] = msg_ls[3], msg_ls[2]
                 if msg_ls[2].isdigit() and msg_ls[3] in init_data.messages_to_user:
-                    user_emails = await conections.get_users(int(msg_ls[1]))
+                    user_emails = await conections.get_users(int(msg_ls[2]))
+                    if user_emails is None:
+                        await bot.send_message(message.chat.id, f"Can't get spam mails from GK")
+                        return
                     init_data.Emails_to_spam_list = list(map(lambda x: x.lower(), user_emails))
                     spam_users = utils.form_user_to_spam()
                     if len(spam_users):
-                        res = await utils.spam(spam_users, init_data.messages_to_user[msg_ls[2]])
+                        res = await utils.spam(spam_users, init_data.messages_to_user[msg_ls[3]])
+                        await utils.make_response_data(message.chat.id, res, send_name="spam_res")
                         await message.answer(f"Spam was send.")
-                        await utils.make_response_data(message.chat.id, res.items(), send_name="spam_res")
                     else:
                         await message.answer(f"No users to send spam in bot db")
-                        init_data.Random_str = utils.gen_rnd_str()
+                    init_data.Random_str = utils.gen_rnd_str()
+                else:
+                    await message.answer(f"some wrong in {msg_ls[3]} {msg_ls[2]}...")
             else:
                 await message.answer("token no correct")
                 return
-
         else:
-            user_emails = await conections.get_users(int(msg_ls[1]))
-            if user_emails is None:
-                await bot.send_message(message.chat.id, f"Can't get spam mails from GK")
-                return
-            else:
-                init_data.Emails_to_spam_list = list(map(lambda x: x.lower(), user_emails))
-                await utils.make_response_data(message.chat.id, init_data.Emails_to_spam_list,
-                                               send_name="spam_mails".upper())
-
+            await message.answer("too many arguments")
+            return
 
     except Exception as e:
         await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)

@@ -2,7 +2,6 @@ from db import Database
 import config
 from utils import utils
 
-
 update_from_gk = False
 MIN_mode = True
 Chek_email_before_join = True

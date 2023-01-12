@@ -129,6 +129,11 @@ async def command_join_handler(message: Message) -> None:
                     # проверяем есть ли почта пользователя в разрешенных c учетом почт с 2
                     if user_email in init_data.Email_user_list or (
                             user_email[:-1] in init_data.Email_user_list and user_email[-1] == "2"):
+                        # если текущий емайл с двойкой, а базе нет емайла без двойки
+                        if (user_email[-1] == "2") and (not init_data.db.user_exists(user_email[:-1])):
+                            await message.answer(
+                                f"Пользователей с емайлом {user_email[:-1]} еще не в канале. Для начала вступите по основному емайлу.")
+                            return
                         # проверяем нет ли уже записи с такой почтой в базе
                         if not init_data.db.user_exists(user_email):
                             # даем ссылку
