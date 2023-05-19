@@ -1,6 +1,6 @@
 import logging
 from create_bot import bot, dp
-from handlers import client, admin
+from handlers import client, admin , superadmin
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import asyncio
 from datetime import datetime
@@ -17,8 +17,10 @@ async def main() -> None:
     scheduler.add_job(admin.command_stat, trigger="cron", hour=dt.hour, minute=dt.minute, start_date=datetime.now())
     scheduler.start()
 
+    dp.include_router(superadmin.router)
     dp.include_router(admin.router)
     dp.include_router(client.router)
+
     await dp.start_polling(bot)
 
 

@@ -32,3 +32,6 @@ Emails_to_delete_from_channel = list(set(db.get_emails()).difference(Email_user_
 
 # список для рассылки полученных пользователей из ГК
 Emails_to_spam_list = []
+
+# список ид групп ГК из которых тащем пользователей
+config.all_gk_group_ids = utils.get_emails_from_file(config.Gk_group_ids_file_name)

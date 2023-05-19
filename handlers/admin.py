@@ -19,40 +19,6 @@ from aiogram.exceptions import TelegramBadRequest
 router = Router()
 
 
-@router.message(Command(commands=["testt"]), myfilters.IsOwner())
-async def testt(message: Message) -> None:
-    await message.answer(text=init_data.messages_to_user["bye"])
-
-
-@router.message(Command(commands=["req"]), myfilters.IsOwner())
-async def req_exmp(message: Message) -> None:
-    gr_id = 2504942
-    msg_ls = message.text.split()
-
-    if len(msg_ls) > 1:
-        gr_id = int(msg_ls[1])
-
-    res = await conections.get_users(gr_id)
-    await utils.make_response_data(message.chat.id, res, send_name="REQUEST_RESULT")
-
-
-@router.message(Command(commands=["ismember"]), myfilters.IsOwner())
-async def ismember(message: Message) -> None:
-    msg_ls = message.text.split()
-    if len(msg_ls) < 2:
-        await message.answer("need id or mail")
-        return
-    else:
-        if msg_ls[1].isdigit():
-            user_id = int(msg_ls[1])
-        elif init_data.db.user_exists(msg_ls[1]):
-            user_id = int(init_data.db.get_user_tlg_id())
-        else:
-            await message.answer("need id or mail")
-            return
-
-        chat_member = await bot.get_chat_member(config.Chanel_Id, user_id)
-        await message.answer(text=chat_member.status)
 
 
 async def update_mails_from_gk_task():
@@ -74,7 +40,7 @@ async def mails_update(message: Message = None) -> None:
         else:
             chat_id = message.chat.id
 
-        user_emails = await conections.get_users(config.rm_club_member_list_gk_group_id)
+        user_emails = await conections.get_users(config.all_gk_group_ids)
         if user_emails is None:
             await bot.send_message(chat_id, f"Can't get update from GK")
             return
@@ -174,39 +140,6 @@ async def delete_gk(message: Message) -> None:
         await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
 
 
-# удаляет пользователей из старого РУМ КЛУБА
-@router.message(Command(commands=["delete_from_old_rum_club"]), myfilters.IsOwner())
-async def delete_from_old_rum_club(message: Message) -> None:
-    try:
-
-        msg = message.text.split()
-        if len(msg) == 1:
-            await message.answer(f"Write token {init_data.Random_str} after /delete command\n"
-                                 f"Example: <pre>/delete_from_old_rum_club {init_data.Random_str}</pre>")
-            return
-        elif msg[1] != init_data.Random_str:
-            await message.answer(f"Write token {init_data.Random_str} after /delete command\n"
-                                 f"Example: <pre>/delete_from_old_rum_club {init_data.Random_str}</pre>")
-            return
-
-        user_emails = set([x[0] for x in init_data.db.get_emails()])
-        for user_email in user_emails:
-            user_tlg_id = init_data.db.get_user_tlg_id(user_email)
-            chat_member2 = await bot.get_chat_member(config.Rum_club_Chanel_Id,
-                                                     user_tlg_id)
-            if chat_member2.status == "member":
-                user_kicked = await bot.kick_chat_member(config.Rum_club_Chanel_Id, user_tlg_id)
-                if user_kicked:
-                    await message.answer(f"User {user_email} delete from OLD RUM_ClUB channel .")
-                else:
-                    await message.answer(f"User {user_email} in OLD RUMCLUB, but Can't delete it from channel.")
-            else:
-                await message.answer(f"User {user_email} NOT member in OLD RUMCLUB")
-
-        init_data.Random_str = utils.gen_rnd_str()
-        return
-    except Exception as e:
-        await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
 
 
 @router.message(Command(commands=["reserv"]), myfilters.IsAdmin())
@@ -253,6 +186,10 @@ async def make_reserv_data(msg: Message = None):
             await bot.send_document(msg_chat_id, FSInputFile(config.Emails_to_delete_file_name))
         except TelegramBadRequest as e:
             await bot.send_message(msg_chat_id, f"Can't send {config.Emails_to_delete_file_name} because {e}")
+        try:
+            await bot.send_document(msg_chat_id, FSInputFile(config.Gk_group_ids_file_name))
+        except TelegramBadRequest as e:
+            await bot.send_message(msg_chat_id, f"Can't send {config.Gk_group_ids_file_name} because {e}")
         return
     except Exception as e:
         await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
@@ -538,61 +475,6 @@ async def set_update_from_gk(message: Message) -> None:
         await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
 
 
-@router.message(Command(commands=["set_channel"]), myfilters.IsOwner())
-async def command_set_channel_handler(message: Message) -> None:
-    try:
-        if len(message.text.split()) > 1:
-            chnl = message.text.split()[1].lower()
-        else:
-            await message.answer("WHERE test|rum|rum2 ?")
-            return
-
-        if chnl == "test":
-            config.Chanel_Id = config.Test_Chanel_Id
-            await message.answer("Set channel id to test")
-
-        if chnl == "rum":
-            config.Chanel_Id = config.Rum_club_Chanel_Id
-            await message.answer("Set channel id to RUM")
-
-        if chnl == "rum2":
-            config.Chanel_Id = config.Rum_club_20_Chanel_Id
-            await message.answer("Set channel id to RUM 2.0")
-        return
-    except Exception as e:
-        await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
-
-
-@router.message(Command(commands=["state"]), myfilters.IsOwner())
-async def command_state(message: Message) -> None:
-    try:
-        t1 = ""
-        if config.Chanel_Id == config.Test_Chanel_Id:
-            t1 = "test"
-        if config.Chanel_Id == config.Rum_club_Chanel_Id:
-            t1 = "Rum"
-
-        if config.Chanel_Id == config.Rum_club_20_Chanel_Id:
-            t1 = "Rum2.0"
-
-        txt = f"Channel_id={t1}\nCheck_emails={init_data.Chek_email_before_join}\n" \
-              f"Min_mid={init_data.MIN_mode}\nAuto_upd_from_gk={init_data.update_from_gk}\n" \
-              f"upd_time_from_gk = {init_data.update_from_gk_time}"
-        await message.answer(txt)
-        return
-    except Exception as e:
-        await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
-
-
-@router.message(Command(commands=["bd_mails_lower"]), myfilters.IsOwner())
-async def bd_mails_lower(message: Message) -> None:
-    try:
-        emails = set([x[0] for x in init_data.db.get_emails()])
-        for mail in emails:
-            user_tlg_id = init_data.db.get_user_tlg_id(mail)
-            init_data.db.update_email(mail.lower(), user_tlg_id)
-    except Exception as e:
-        await create_bot.send_error_message(__name__, inspect.currentframe().f_code.co_name, e)
 
 
 @router.message(Command(commands=["set_grid_spam"]), myfilters.IsAdmin())
@@ -752,7 +634,10 @@ async def command_helpss(msg: Message):
               "/check_emails [on, off] - выбор проверять ли емайл для доступа к каналу\n" \
               "/delete_from_old_rum_club [token] удалить пользователей из старого канала РУМКЛУБА\n" \
               "/bd_mails_lower - приведет все емайлы в бд и спмсках нижнему регистру\n" \
-              "/req - [group_id] запрос к ГК апи\n"
+              "/req [group_id] - запрос к ГК апи\n" \
+              "/del_gk_gr [group_id] - удаляет ГК группу из списка обновляемых\n" \
+              "/add_gk_gr [group_id] - добавляет ГК группу в списка обновляемых\n" \
+
 
         await msg.answer(txt, parse_mode="HTML")
         return
